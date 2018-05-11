@@ -1,5 +1,4 @@
 #include <iostream>
-#include<lemon/list_graph.h>
 
 #include <cstdio>
 #include <fstream>
@@ -8,11 +7,18 @@
 #include <list>
 #include <float.h>
 
-#include <lemon/concepts/graph.h>
+//#include <lemon/concepts/graph.h>
 #include <lemon/smart_graph.h>
 #include <lemon/network_simplex.h>
+
+#include <lemon/maps.h>
+#include <lemon/list_graph.h>
+#include <lemon/capacity_scaling.h>
+#include <lemon/preflow.h>
 //#include <lemon/capacity_scaling.h>
 
+#include <lemon/lgf_reader.h>
+#include <lemon/lgf_writer.h>
 #include <lemon/dimacs.h>
 
 //classes
@@ -353,7 +359,7 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
 
 	//cout << "In LS start calc" << endl;
 	//printDPs(ps, noDP);
-	double currentCost = calcRegions(ps, cPoints, noDP, k,cap,regions);
+	double currentCost = calcRegionsCS(ps, cPoints, noDP, k,cap,regions);
 	//cout << "In LS after first calc" << endl;
 	//printDPs(ps, noDP);
 
@@ -400,7 +406,7 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
 
 					cout << "After switch" << endl;
 					cout << "In LS before iter calc" << endl;
-					newCost = calcRegions(ps, cPoints, noDP, k,cap,regions);
+					newCost = calcRegionsCS(ps, cPoints, noDP, k,cap,regions);
 					//cout << "In LS after iter calc" << endl;
 					//printDPs(ps, noDP);
 
@@ -704,8 +710,8 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 	if(beVerbose||lilVerbose)printf("Input graph created with %d nodes and %d arcs\n\n",
 			countNodes(g), countArcs(g));
 	// Initialize NetworkSimplex algorithm object
-	NetworkSimplex<SmartDigraph> ns(g);
-	//CapacityScaling<SmartDigraph> ns(g);
+	//NetworkSimplex<SmartDigraph> ns(g);
+	CapacityScaling<SmartDigraph> ns(g);
 
 	//cout << "In Calc before run" << endl;
 	//printDPs(ps, noDP);
@@ -789,7 +795,7 @@ double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap){
 			cPoints[cc] = *it;
 			cc++;
         }
-        newCost = calcRegions(ps, cPoints, noDP, k,cap,regions);
+        newCost = calcRegionsCS(ps, cPoints, noDP, k,cap,regions);
 
     	if(newCost<currentCost){
     		currentCost = newCost;
