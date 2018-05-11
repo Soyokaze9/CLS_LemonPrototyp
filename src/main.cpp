@@ -68,6 +68,8 @@ void directPlot(DataPoint* dps, int noDP);
 void directPlotRegions(DataPoint* dps, int noDP,int centers[], int noCenters,int regions[],const char * title);
 void directPlotPoints(DataPoint* dps, int noDP,int centers[], int noCenters,const char * title);
 double calcRegions(DataPoint ps[],int cPoints[], int noDP, int k, int cap, int regions[]);
+double calcRegionsCS(DataPoint ps[],int cPoints[], int noDP, int k, int cap, int regions[]);
+
 std::string vertNoToString(int vertexNo,int maxNo);
 void printList( std::list<int> l);
 void printList( std::list<std::list<int>> l);
@@ -158,7 +160,7 @@ void mediumExampleSearchBF(){
 
 	bruteForceSearch(ps, noDP,  k,  cap);
 
-
+	localSearch(ps, noDP,  k,  cap);
 
 }
 
@@ -356,7 +358,7 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
 	//printDPs(ps, noDP);
 
 	double newCost;
-	double improvement;
+	double improvement = currentCost;
 	double minImprovment = 0.01;
 
 
@@ -374,7 +376,7 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
 
 	bool forBreak = false;
 	int iterations = 0;
-	while(iterations < 5){
+	while(iterations < 5 && (improvement>minImprovment)){
 		if(beVerbose)cout <<" " << endl;
 		if(beVerbose)cout <<"iteration:  "<<iterations << endl;
 		if(beVerbose)cout <<"start for j " << endl;
@@ -410,8 +412,18 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
 						cout << "switched: " << cPoints[j] << "with " << l << endl;
 						ps[cPoints[j]].centerID = -1;
 						cPoints[j] = cPointsNew[j];
+
+						improvement = currentCost-newCost;
 						currentCost=newCost;
 						forBreak = true;
+
+						std::ostringstream stringStream;
+						stringStream << "Iteration: "  << iterations <<" with cost:"<<currentCost;
+						std::string formatedStr = stringStream.str();
+						const char* cstr = formatedStr.c_str();
+						directPlotRegions(ps, noDP,cPoints, k,regions,cstr);
+
+
 						break;
 						//goto stop;
 					}else{
@@ -442,12 +454,9 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
 		} //for j= current Center to switch
 		iterations++;
 		cout << "After iteration:" << iterations << endl;
-		forBreak = false;
-		std::ostringstream stringStream;
-		stringStream << "Iteration: "  << iterations <<" with cost:"<<currentCost;
-		std::string formatedStr = stringStream.str();
-		const char* cstr = formatedStr.c_str();
-		directPlotRegions(ps, noDP,cPoints, k,regions,cstr);
+		if(forBreak)forBreak = false;
+		else improvement = 0;
+
 	}
 	cout <<  "While Loop exited at iter:" << iterations <<endl;
 	stringStream << "MinCost found:" <<currentCost<<endl;
@@ -597,6 +606,148 @@ double calcRegions(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, i
 	return ns.totalCost();
 }
 
+//returns cost of mapping to given centers, regions is map #index of DP to index in DP of center
+double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int regions[]){
+
+
+	bool beVerbose = false;
+	bool lilVerbose = true;
+
+	if(beVerbose||lilVerbose)printf("*****calcBegin********\n");
+
+	//create graph
+	DIGRAPH_TYPEDEFS(SmartDigraph);
+	SmartDigraph g;
+	//map for cost and capacity
+	IntArcMap capacity(g);
+	DoubleArcMap cost(g);
+	IntNodeMap supply(g);
+	//Digraph::NodeMap<string>
+	IntArcMap name(g);
+	//StringArcMap name(g);
+	Node nodesGraph[noDP+2];
+
+	//for all points
+	//add vertex
+	for(int i=0;i<noDP;i++){
+		ps[i].graphNodeIndex = i;
+		nodesGraph[i] = g.addNode();
+		supply[nodesGraph[i]] = 0;
+	}
+	//make note of centers for later
+	int cPoints[k];
+
+	int counter = 0;
+	for(int i=0;i<noDP;i++){
+		if (ps[i].isCenter){
+			cPoints[counter]=i;
+			counter++;
+		}
+	}
+
+	if(counter<k){
+		cout << "NOT ENOUGH CENTERS" << endl;
+		return 0;
+	}
+
+
+	//cout << "In Calc after Nodes init" << endl;
+	//printDPs(ps, noDP);
+	// add s and t
+	nodesGraph[noDP] = g.addNode();
+	nodesGraph[noDP+1] = g.addNode();
+	int indexS = noDP;
+	int indexT = noDP+1;
+
+	int demand = (noDP-k);
+	if(beVerbose)cout << "demand:" << demand << endl;
+	supply[nodesGraph[indexS]] = (demand);
+	supply[nodesGraph[indexT]] = -(demand);
+
+	int numberOfArcs = (noDP-k)*(k+1)+k;
+	if(beVerbose)cout << "numberOfArcs:" << numberOfArcs << endl;
+
+	int arcCounter = 0;
+	//for all points
+	for(int i=0;i<noDP;i++){
+		Arc newArc;
+		Node pnode;
+		if (ps[i].isCenter){
+			//// add arc c->t , cost 0, flowcap cap
+			pnode = nodesGraph[ps[i].graphNodeIndex];
+			newArc = g.addArc(pnode,nodesGraph[indexT]);
+			capacity[newArc] = cap;
+			cost[newArc] = 0;
+			arcCounter++;
+			//arcNames[arcCounter] = "c->t";//string("c: node") + std::to_string(i) + "-> t";
+		}else{
+			//// add arc s->p , cost 0, flowcap 1
+			pnode = nodesGraph[ps[i].graphNodeIndex];
+			newArc = g.addArc(nodesGraph[indexS],pnode);
+			capacity[newArc] = 1;
+			cost[newArc] = 0;
+			arcCounter++;
+			//arcNames[arcCounter] = "s->p";//string("S -> node") + i;
+			//forall c add p->c cost dist, flowcap 1
+			for(int j=0;j<k;j++){
+				Node cnode = nodesGraph[ps[cPoints[j]].graphNodeIndex];
+				newArc = g.addArc(pnode, cnode);
+				if(beVerbose)cout << g.id(g.source(newArc)) << "->" << g.id(g.target(newArc))<< endl;
+				capacity[newArc] = 1;
+				cost[newArc] = ps[i].distanceTo(ps[cPoints[j]]);
+				arcCounter++;
+				//string tempS = "p->c";string("p: node") + i +"-> c: node "+ j +" cost:" + ps[i].distanceTo(cPoints[j]);
+				//arcNames[arcCounter] ="p->c";;
+			}
+		}
+	}
+	if(beVerbose||lilVerbose)printf("Input graph created with %d nodes and %d arcs\n\n",
+			countNodes(g), countArcs(g));
+	// Initialize NetworkSimplex algorithm object
+	NetworkSimplex<SmartDigraph> ns(g);
+	//CapacityScaling<SmartDigraph> ns(g);
+
+	//cout << "In Calc before run" << endl;
+	//printDPs(ps, noDP);
+
+	ns.upperMap(capacity).costMap(cost).supplyMap(supply);
+	// Run NetworkSimplex
+	ns.run();
+	// Print total flow cost
+	if(beVerbose||lilVerbose)printf("Total flow cost: %d\n\n", ns.totalCost());
+
+	// Print flow values on the arcs with ArcIterator
+	if(beVerbose)printf("Flow values on arcs:\n");
+	for (ArcIt a(g); a != INVALID; ++a) {
+		//if it is not s or t
+		if(ns.flow(a)>0){
+			if(g.id(g.source(a))<noDP){
+				if(g.id(g.target(a))<noDP){
+					if(beVerbose)printf("Region Map %d->%d\n",g.id(g.source(a))+1 ,g.id(g.target(a))+1);
+					regions[g.id(g.source(a))] = g.id(g.target(a));
+				}else{
+					if(beVerbose)printf("Region Map %d-is Center\n",g.id(g.source(a))+1);
+					regions[g.id(g.source(a))] = g.id(g.source(a));
+				}
+			}
+		}
+		if(beVerbose)printf("Arc %d: %s->%s:  %d/%d cost: %lf\n", g.id(a),
+				vertNoToString(g.id(g.source(a)),noDP).c_str(),
+				vertNoToString(g.id(g.target(a)),noDP).c_str(),
+				ns.flow(a), capacity[a] ,cost[a]);
+	}
+	for(int i=0;i<noDP;i++){
+		//printf("Region Map %d->%d\n");
+		if(beVerbose)printf("index %d value %d\n",i+1,regions[i]+1);
+	}
+
+	//cout << "In Calc return " << endl;
+	//printDPs(ps, noDP);
+	if(beVerbose||lilVerbose)printf("*****calcEnd********\n");
+	return ns.totalCost();
+}
+
+
 double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap){
 	//start with random centers
 	int cPoints[k];
@@ -642,14 +793,22 @@ double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap){
 
     	if(newCost<currentCost){
     		currentCost = newCost;
+
+    		/*
     		std::ostringstream stringStream;
     		stringStream << "pairNo: "  << pairNo <<" with cost:"<<newCost;
     		std::string formatedStr = stringStream.str();
     		const char* cstr = formatedStr.c_str();
     		directPlotRegions(ps, noDP,cPoints, k,regions,cstr);
+    		*/
     		//save centerIndices and region
     	}
     }
+	 // reset centers
+	 for(int j=0;j<noDP;j++){
+		ps[j].isCenter = false;
+		ps[j].centerID = -1;
+	 }
 
 	cout <<  "BF exit with min Cost:" << currentCost<< endl;;
 	return currentCost;
