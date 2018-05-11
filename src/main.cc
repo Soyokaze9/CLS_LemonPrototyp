@@ -17,6 +17,7 @@ public:
 	double Y;
 	bool isCenter;
 	int graphNodeIndex;
+	int centerIndex;
 	DataPoint* nearestCenter;
 	DataPoint(){
 		X = 0;
@@ -24,8 +25,9 @@ public:
 		isCenter = false;
 		nearestCenter = NULL;
 		graphNodeIndex = -1;
+		centerIndex = -1;
 	}
-	//~DataPoint() { delete nearestCenter; }
+	~DataPoint() { delete nearestCenter; }
 
 	DataPoint(double x, double y){
 		X = x;
@@ -42,16 +44,16 @@ public:
 	}
 };
 
-int example1();
-int example2();
-int example3();
+//int example1();
+//int example2();
+//int example3();
 void exampleSearch();
 void exampleLoopWithPlot();
 double localSearch(DataPoint ps[], int noDP, int k, int cap);
 void directPlot(DataPoint* dps, int noDP);
-void directPlotRegions(DataPoint* dps, int noDP,DataPoint* centers, int noCenters,int regions[],const char * title);
-void directPlotPoints(DataPoint* dps, int noDP,DataPoint* centers, int noCenters,const char * title);
-double calcRegions(DataPoint ps[],DataPoint cPoints[], int noDP, int k, int cap, int regions[]);
+void directPlotRegions(DataPoint* dps, int noDP,int centers[], int noCenters,int regions[],const char * title);
+void directPlotPoints(DataPoint* dps, int noDP,int centers[], int noCenters,const char * title);
+double calcRegions(DataPoint ps[],int cPoints[], int noDP, int k, int cap, int regions[]);
 std::string vertNoToString(int vertexNo,int maxNo);
 
 using namespace lemon;
@@ -108,11 +110,11 @@ void exampleLoopWithPlot(){
     p6.isCenter = true;
     p7.isCenter = true;
     DataPoint ps[noDP] = {p1,p2,p3,p4,p5,p6,p7,p8};
-    DataPoint cPoints[k];
+    int cPoints[k];
     int counter = 0;
     for(int i=0;i<noDP;i++){
     	if (ps[i].isCenter){
-    		cPoints[counter]=ps[i];
+    		cPoints[counter]=i;
 			//cout << "Center:" << endl;
 			//cout << "X:" << cPoints[counter].X << "Y:" << cPoints[counter].Y <<endl;
 			//cout << "X:" << ps[i].X << "Y:" << ps[i].Y <<endl;
@@ -125,6 +127,7 @@ void exampleLoopWithPlot(){
     directPlotRegions(ps, noDP,cPoints, k,regions,"Expample");
 }
 
+/*
 int example1(){
     int noDP = 8;
     int k = 3;
@@ -206,7 +209,7 @@ int example3(){
 
     return 0;
 }
-
+*/
 //end of examples ******************
 
 //local search:
@@ -215,8 +218,8 @@ int example3(){
 //
 double localSearch(DataPoint ps[], int noDP, int k, int cap){
 	//start with random centers
-	DataPoint cPoints[k];
-	DataPoint cPointsNew[k];
+	int cPoints[k];
+	int cPointsNew[k];
 	int regions[noDP];
 
 	srand (time(NULL));
@@ -230,9 +233,9 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
 			if(!ps[randInt].isCenter){
 				ps[randInt].isCenter = true;
 				ps[randInt].graphNodeIndex = randInt;
-				cPoints[i] = ps[randInt];
-				cPointsNew[i] = ps[randInt];
-				cout << "cPoints[i]: x " << cPoints[i].X << " y:"<< cPoints[i].Y << endl;
+				cPoints[i] = randInt;
+				cPointsNew[i] = randInt;
+				cout << "cPoints[i]: x " << ps[cPoints[i]].X << " y:"<< ps[cPoints[i]].Y << endl;
 				notFound = false;
 			}
 		}
@@ -259,13 +262,13 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
     	for(int j=0;j<k;j++){
     			for(int l=0;l<noDP;l++){
     				//try swap
-    				cPointsNew[j] = ps[l];
-    				cPoints[j].isCenter = false;
-    				cPointsNew[j].isCenter = true;
+    				cPointsNew[j] = l;
+    				ps[cPoints[j]].isCenter = false;
+    				ps[cPointsNew[j]].isCenter = true;
     				cout <<"-----\n";
     				cout << "ps[l] isCenter expected 1 :" << ps[l].isCenter << endl;
-    				cout << "cPoints[j].isCenter expected 0:" << ps[l].isCenter << endl;
-					cout << "ps[cPoints[j].graphNodeIndex].isCenter expected 0:" << ps[cPoints[j].graphNodeIndex].isCenter << endl;
+    				cout << "ps[cPoints[j]].isCenter expected 0:" << ps[l].isCenter << endl;
+					cout << "ps[cPoints[j].graphNodeIndex].isCenter expected 0:" << ps[ps[cPoints[j]].graphNodeIndex].isCenter << endl;
 					cout <<"-----\n";
 					newCost = calcRegions(ps, cPoints, noDP, k,cap,regions);
 
@@ -276,13 +279,13 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
     					break;
     					//goto stop;
     				}else{
-    					cPoints[j].isCenter = true;
-    					cPointsNew[j].isCenter = false;
+    					ps[cPoints[j]].isCenter = true;
+    					ps[cPointsNew[j]].isCenter = false;
     					cout <<"+++++++\n";
-    					cout << "cPoints[j].isCenter:" << cPoints[j].isCenter << endl;
-    					cout << "cPointsNew[j].isCenter:" << cPointsNew[j].isCenter << endl;
+    					cout << "cPoints[j].isCenter:" << ps[cPoints[j]].isCenter << endl;
+    					cout << "cPointsNew[j].isCenter:" << ps[cPointsNew[j]].isCenter << endl;
 
-    					cout << "ps[cPoints[j].graphNodeIndex] isCenter exp 1:" << ps[cPoints[j].graphNodeIndex].isCenter << endl;
+    					cout << "ps[cPoints[j].graphNodeIndex] isCenter exp 1:" << ps[ps[cPoints[j]].graphNodeIndex].isCenter << endl;
     					cout << "ps[l] isCenter expected 0 :" << ps[l].isCenter << endl;
     					cout <<"+++++++\n";
     					cPointsNew[j] = cPoints[j];
@@ -313,7 +316,7 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
 
 
 //returns cost of mapping to given centers, regions is map #index of DP to index in DP of center
-double calcRegions(DataPoint ps[],DataPoint cPoints2[], int noDP, int k, int cap, int regions[]){
+double calcRegions(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int regions[]){
 
 	bool beVerbose = false;
 	//create graph
@@ -336,12 +339,12 @@ double calcRegions(DataPoint ps[],DataPoint cPoints2[], int noDP, int k, int cap
     	supply[nodesGraph[i]] = 0;
     }
     //make note of centers for later
-    DataPoint cPoints[k];
+    int cPoints[k];
 
     int counter = 0;
     for(int i=0;i<noDP;i++){
     	if (ps[i].isCenter){
-    		cPoints[counter]=ps[i];
+    		cPoints[counter]=i;
 			counter++;
     	}
     }
@@ -383,11 +386,11 @@ double calcRegions(DataPoint ps[],DataPoint cPoints2[], int noDP, int k, int cap
     		//arcNames[arcCounter] = "s->p";//string("S -> node") + i;
     		//forall c add p->c cost dist, flowcap 1
     		for(int j=0;j<k;j++){
-    			Node cnode = nodesGraph[cPoints[j].graphNodeIndex];
+    			Node cnode = nodesGraph[ps[cPoints[j]].graphNodeIndex];
         		newArc = g.addArc(pnode, cnode);
         		if(beVerbose)cout << g.id(g.source(newArc)) << "->" << g.id(g.target(newArc))<< endl;
         		capacity[newArc] = 1;
-        		cost[newArc] = ps[i].distanceTo(cPoints[j]);
+        		cost[newArc] = ps[i].distanceTo(ps[cPoints[j]]);
         		arcCounter++;
         		//string tempS = "p->c";string("p: node") + i +"-> c: node "+ j +" cost:" + ps[i].distanceTo(cPoints[j]);
         		//arcNames[arcCounter] ="p->c";;
@@ -475,7 +478,7 @@ void directPlot(DataPoint* dps, int noDP)
     pclose(gnuplotPipe);
 }
 
-void directPlotPoints(DataPoint* dps, int noDP,DataPoint* centers, int noCenters, const char * title)
+void directPlotPoints(DataPoint* dps, int noDP,int centers[], int noCenters, const char * title)
 {
 	FILE * gnuplotPipe = popen ("gnuplot -persistent", "w");
 	initPlotForFileLink(gnuplotPipe,title);
@@ -483,7 +486,7 @@ void directPlotPoints(DataPoint* dps, int noDP,DataPoint* centers, int noCenters
     int i;
     for (i=0; i < noCenters; i++)
     {
-    	fprintf(gnuplotPipe, "%lf %lf\n", centers[i].X, centers[i].Y);
+    	fprintf(gnuplotPipe, "%lf %lf\n", dps[centers[i]].X, dps[centers[i]].Y);
     }
     fprintf(gnuplotPipe, "e\n");
     int j;
@@ -496,7 +499,7 @@ void directPlotPoints(DataPoint* dps, int noDP,DataPoint* centers, int noCenters
     pclose(gnuplotPipe);
 }
 
-void directPlotRegions(DataPoint* dps, int noDP,DataPoint* centers, int noCenters,int regions[],const char * title)
+void directPlotRegions(DataPoint* dps, int noDP,int centers[], int noCenters,int regions[],const char * title)
 {
 	FILE * gnuplotPipe = popen ("gnuplot -persistent", "w");
 	initPlotForFileLink(gnuplotPipe,title);
@@ -507,7 +510,7 @@ void directPlotRegions(DataPoint* dps, int noDP,DataPoint* centers, int noCenter
     for (i=0; i < noCenters; i++)
     {
     	//printf("plotting center point: %lf %lf\n", centers[i].X, centers[i].Y);
-    	fprintf(gnuplotPipe, "%lf %lf\n", centers[i].X, centers[i].Y);
+    	fprintf(gnuplotPipe, "%lf %lf\n", dps[centers[i]].X, dps[centers[i]].Y);
     }
     fprintf(gnuplotPipe, "e\n");
     int j;
