@@ -242,13 +242,15 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
     double newCost;
     double improvement;
     double minImprovment = 0.01;
-    //directPlotPoints(ps, noDP,cPoints, k, "Start");
+
 
     std::ostringstream stringStream;
     stringStream << "Start with cost:" << currentCost;
     std::string formatedStr = stringStream.str();
     const char* cstr = formatedStr.c_str();
 
+    directPlot(ps, noDP);
+    directPlotPoints(ps, noDP,cPoints, k, "Start");
     directPlotRegions(ps, noDP,cPoints, k,regions,cstr);
 
     bool forBreak = false;
@@ -432,77 +434,8 @@ double calcRegions(DataPoint ps[],DataPoint cPoints2[], int noDP, int k, int cap
 
 
 //plot functions ************************
-void directPlot(DataPoint* dps, int noDP)
-{
-    //char * commandsForGnuplot[] = {"set title \"TITLE\"", "plot 'data.temp'"};
-    int noCMDs = 3;
-	const char * commandsForGnuplot[] = {"set title \"TITLE\"", "set xrange [0:6]","set yrange [0:6]"};
+void initPlotForFileLink(FILE * gnuplotPipe,const char * title){
 
-    FILE * gnuplotPipe = popen ("gnuplot -persistent", "w");
-
-    for (int j=0; j < noCMDs;j++)
-    {
-    	fprintf(gnuplotPipe, "%s \n", commandsForGnuplot[j]); //Send commands to gnuplot
-    }
-
-    fprintf(gnuplotPipe, "plot '-' \n");
-    int i;
-    for (i=0; i < noDP; i++)
-    {
-    	 fprintf(gnuplotPipe, "%lf %lf\n", dps[i].X, dps[i].Y);
-    }
-    fprintf(gnuplotPipe, "e");
-
-    fflush(gnuplotPipe);
-
-    pclose(gnuplotPipe);
-}
-
-void directPlotPoints(DataPoint* dps, int noDP,DataPoint* centers, int noCenters, const char * title)
-{
-	int noCMDs = 10;
-	const char * commandsForGnuplot[] = {
-			"set xrange [0:10]",
-			"set yrange [0:10]",
-	"set style line 1 lc rgb 'black' pt 5 ps 1  # square",
-	"set style line 2 lc rgb 'green' pt 7 ps 1  # circle",
-	"set style line 3 lc rgb 'blue' pt 9   # triangle",
-	"set style line 4 lc rgb 'black' pt 1   # plus sign",
-	"set style line 5 lc rgb 'yellow' pt 2   # cross",
-	"set style line 6 lc rgb 'black' pt 10   # triangle down",
-	"set style line 7 lc rgb 'blue' pt 16   #star",
-	"set style line 9 lc rgb 'red' pt 7 ps 2  # circle for center"};
-
-	FILE * gnuplotPipe = popen ("gnuplot -persistent", "w");
-
-	fprintf(gnuplotPipe, "set title \"%s\" \n", title);
-
-    for (int j=0; j < noCMDs;j++)
-    {
-    	fprintf(gnuplotPipe, "%s \n", commandsForGnuplot[j]); //Send commands to gnuplot
-    }
-
-    fprintf(gnuplotPipe, "plot '-' w p ls 9 t  \"Center\" , '-' w p ls 1 t \"DataPoints\" \n");
-    int i;
-
-    for (i=0; i < noCenters; i++)
-    {
-    	fprintf(gnuplotPipe, "%lf %lf\n", centers[i].X, centers[i].Y);
-    }
-    fprintf(gnuplotPipe, "e\n");
-
-    int j;
-    for (j=0; j < noDP; j++)
-    {
-    	 fprintf(gnuplotPipe, "%lf %lf\n", dps[j].X, dps[j].Y);
-    }
-    fprintf(gnuplotPipe, "e\n");
-    fflush(gnuplotPipe);
-    pclose(gnuplotPipe);
-}
-
-void directPlotRegions(DataPoint* dps, int noDP,DataPoint* centers, int noCenters,int regions[],const char * title)
-{
 	//int ColorCode[noDP];
 	int noCMDs = 11;
 	const char * commandsForGnuplot[] = {
@@ -519,15 +452,54 @@ void directPlotRegions(DataPoint* dps, int noDP,DataPoint* centers, int noCenter
 	//"set style line 9 lc rgb 'red' pt 9   # triangle",
 	"set style line 9 lc rgb 'red' pt 7 ps 2  # circle for center"
 	};
-
-	FILE * gnuplotPipe = popen ("gnuplot -persistent", "w");
-
 	printf("set title %s \n", title);
 	fprintf(gnuplotPipe, "set title \"%s\" \n", title);
     for (int j=0; j < noCMDs;j++)
     {
     	fprintf(gnuplotPipe, "%s \n", commandsForGnuplot[j]); //Send commands to gnuplot
     }
+}
+
+void directPlot(DataPoint* dps, int noDP)
+{
+    FILE * gnuplotPipe = popen ("gnuplot -persistent", "w");
+	initPlotForFileLink(gnuplotPipe,"directPlot");
+    fprintf(gnuplotPipe, "plot '-' \n");
+    int i;
+    for (i=0; i < noDP; i++)
+    {
+    	 fprintf(gnuplotPipe, "%lf %lf\n", dps[i].X, dps[i].Y);
+    }
+    fprintf(gnuplotPipe, "e");
+    fflush(gnuplotPipe);
+    pclose(gnuplotPipe);
+}
+
+void directPlotPoints(DataPoint* dps, int noDP,DataPoint* centers, int noCenters, const char * title)
+{
+	FILE * gnuplotPipe = popen ("gnuplot -persistent", "w");
+	initPlotForFileLink(gnuplotPipe,title);
+    fprintf(gnuplotPipe, "plot '-' w p ls 9 t  \"Center\" , '-' w p ls 1 t \"DataPoints\" \n");
+    int i;
+    for (i=0; i < noCenters; i++)
+    {
+    	fprintf(gnuplotPipe, "%lf %lf\n", centers[i].X, centers[i].Y);
+    }
+    fprintf(gnuplotPipe, "e\n");
+    int j;
+    for (j=0; j < noDP; j++)
+    {
+    	 fprintf(gnuplotPipe, "%lf %lf\n", dps[j].X, dps[j].Y);
+    }
+    fprintf(gnuplotPipe, "e\n");
+    fflush(gnuplotPipe);
+    pclose(gnuplotPipe);
+}
+
+void directPlotRegions(DataPoint* dps, int noDP,DataPoint* centers, int noCenters,int regions[],const char * title)
+{
+	FILE * gnuplotPipe = popen ("gnuplot -persistent", "w");
+	initPlotForFileLink(gnuplotPipe,title);
     //set multiplot
     fprintf(gnuplotPipe, "set multiplot\n");
     fprintf(gnuplotPipe, "plot '-' w p ls 9 t  \"Center\" \n" ); //, '-' w p ls 1 t \"DataPoints\" \n");
@@ -548,7 +520,6 @@ void directPlotRegions(DataPoint* dps, int noDP,DataPoint* centers, int noCenter
     fflush(gnuplotPipe);
     fprintf(gnuplotPipe, "unset multiplot\n");
     pclose(gnuplotPipe);
-
 }
 
 //end of plot functions ************************
