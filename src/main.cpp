@@ -6,6 +6,7 @@
 
 #include <string>
 #include <list>
+#include <float.h>
 
 #include <lemon/concepts/graph.h>
 #include <lemon/smart_graph.h>
@@ -58,6 +59,8 @@ public:
 //int example3();
 void exampleSearch();
 void exampleSearchBF();
+void simpleExampleSearchBF();
+void mediumExampleSearchBF();
 void exampleLoopWithPlot();
 double localSearch(DataPoint ps[], int noDP, int k, int cap);
 double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap);
@@ -100,7 +103,7 @@ int main() {
 	 */
 
 	//exampleSearch();
-	exampleSearchBF();
+	mediumExampleSearchBF();
 	return 0;
 }
 
@@ -124,6 +127,41 @@ void exampleSearchBF(){
 	bruteForceSearch(ps, noDP,  k,  cap);
 }
 
+void simpleExampleSearchBF(){
+
+	int noDP = 3;
+	int k = 1;
+	int cap = 2;
+	DataPoint p1(1,1);
+	DataPoint p2(2,1);
+	DataPoint p3(3,1);
+	DataPoint ps[noDP] = {p1,p2,p3};
+
+	bruteForceSearch(ps, noDP,  k,  cap);
+}
+
+void mediumExampleSearchBF(){
+
+	int noDP = 6;
+	int k = 2;
+	int cap = 2;
+	DataPoint p1(1,1);
+	DataPoint p2(2,1);
+	DataPoint p3(3,1);
+
+	DataPoint p4(1,3);
+	DataPoint p5(2,3);
+	DataPoint p6(3,3);
+
+
+	DataPoint ps[noDP] = {p1,p2,p3,p4,p5,p6};
+
+	bruteForceSearch(ps, noDP,  k,  cap);
+
+
+
+}
+
 void exampleSearch(){
 	int noDP = 8;
 	int k = 3;
@@ -141,7 +179,6 @@ void exampleSearch(){
 	//p7.isCenter = true;
 	DataPoint ps[noDP] = {p1,p2,p3,p4,p5,p6,p7,p8};
 	localSearch(ps, noDP,  k,  cap);
-
 }
 
 void exampleLoopWithPlot(){
@@ -412,7 +449,8 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
 		const char* cstr = formatedStr.c_str();
 		directPlotRegions(ps, noDP,cPoints, k,regions,cstr);
 	}
-	cout <<  "While Loop exited at iter:" << iterations;
+	cout <<  "While Loop exited at iter:" << iterations <<endl;
+	stringStream << "MinCost found:" <<currentCost<<endl;
 	return 0;
 }
 
@@ -424,6 +462,9 @@ double calcRegions(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, i
 
 	bool beVerbose = false;
 	bool lilVerbose = true;
+
+	if(beVerbose||lilVerbose)printf("*****calcBegin********\n");
+
 	//create graph
 	DIGRAPH_TYPEDEFS(SmartDigraph);
 	SmartDigraph g;
@@ -552,7 +593,7 @@ double calcRegions(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, i
 
 	//cout << "In Calc return " << endl;
 	//printDPs(ps, noDP);
-
+	if(beVerbose||lilVerbose)printf("*****calcEnd********\n");
 	return ns.totalCost();
 }
 
@@ -565,8 +606,6 @@ double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap){
 
 	bool beVerbose = true;
 
-
-
     int indArray[noDP];
     for(int j=0;j<noDP;j++) indArray[j]=j;
 
@@ -576,32 +615,44 @@ double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap){
     cout << "ALL--------------" << endl;
     printList(all);
 
-    //for(list<list<int>>::iterator it=all.begin(); it!=all.end() ; ++it)
-    //     std::list<int> l = (*it) ;
+    double currentCost = DBL_MAX;
+    double newCost;
 
+    int pairNo = 0;
 
-	double currentCost = calcRegions(ps, cPoints, noDP, k,cap,regions);
-	double newCost;
+    for(list<list<int>>::iterator it=all.begin(); it!=all.end() ; ++it){
+    	 std::list<int> l = (*it) ;
+    	 int cc = 0;
+    	 pairNo++;
+    	 // reset centers
+    	 for(int j=0;j<noDP;j++){
+ 			ps[j].isCenter = false;
+ 			ps[j].centerID = -1;
+    	 }
 
+    	 // set centers
+        for(list<int>::iterator it=l.begin(); it!=l.end() ; ++it){
+        	cout << " " << *it;
+			ps[*it].isCenter = true;
+			ps[*it].centerID = cc;
+			cPoints[cc] = *it;
+			cc++;
+        }
+        newCost = calcRegions(ps, cPoints, noDP, k,cap,regions);
 
-/*
-	std::ostringstream stringStream;
-	stringStream << "Start with cost:" << currentCost;
-	std::string formatedStr = stringStream.str();
-	const char* cstr = formatedStr.c_str();
+    	if(newCost<currentCost){
+    		currentCost = newCost;
+    		std::ostringstream stringStream;
+    		stringStream << "pairNo: "  << pairNo <<" with cost:"<<newCost;
+    		std::string formatedStr = stringStream.str();
+    		const char* cstr = formatedStr.c_str();
+    		directPlotRegions(ps, noDP,cPoints, k,regions,cstr);
+    		//save centerIndices and region
+    	}
+    }
 
-
-	directPlotRegions(ps, noDP,cPoints, k,regions,cstr);
-	if(newCost<currentCost){
-		std::ostringstream stringStream;
-		stringStream << "Iteration: "  << iterations <<" with cost:"<<currentCost;
-		std::string formatedStr = stringStream.str();
-		const char* cstr = formatedStr.c_str();
-		directPlotRegions(ps, noDP,cPoints, k,regions,cstr);
-	}
-	*/
-	cout <<  "BF exit:";
-	return 0;
+	cout <<  "BF exit with min Cost:" << currentCost<< endl;;
+	return currentCost;
 }
 
 
