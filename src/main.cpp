@@ -366,10 +366,11 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
 	double newCost;
 	double improvement = currentCost;
 	double minImprovment = 0.01;
-
+	printf("currentCost: %f",currentCost);
 
 	std::ostringstream stringStream;
 	stringStream << "Start with cost:" << currentCost;
+	//stringf();
 	std::string formatedStr = stringStream.str();
 	const char* cstr = formatedStr.c_str();
 
@@ -615,12 +616,9 @@ double calcRegions(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, i
 //returns cost of mapping to given centers, regions is map #index of DP to index in DP of center
 double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int regions[]){
 
-
-	bool beVerbose = false;
+	bool beVerbose = true;
 	bool lilVerbose = true;
-
 	if(beVerbose||lilVerbose)printf("*****calcBegin********\n");
-
 	//create graph
 	DIGRAPH_TYPEDEFS(SmartDigraph);
 	SmartDigraph g;
@@ -700,7 +698,9 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 				newArc = g.addArc(pnode, cnode);
 				if(beVerbose)cout << g.id(g.source(newArc)) << "->" << g.id(g.target(newArc))<< endl;
 				capacity[newArc] = 1;
-				cost[newArc] = ps[i].distanceTo(ps[cPoints[j]]);
+				double costLocal= ps[i].distanceTo(ps[cPoints[j]]);
+				cout<< "ArcCost:"<< costLocal<< endl;
+				cost[newArc] = costLocal;
 				arcCounter++;
 				//string tempS = "p->c";string("p: node") + i +"-> c: node "+ j +" cost:" + ps[i].distanceTo(cPoints[j]);
 				//arcNames[arcCounter] ="p->c";;
@@ -711,7 +711,7 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 			countNodes(g), countArcs(g));
 	// Initialize NetworkSimplex algorithm object
 	//NetworkSimplex<SmartDigraph> ns(g);
-	CapacityScaling<SmartDigraph> ns(g);
+	CapacityScaling<SmartDigraph,int,double> ns(g);
 
 	//cout << "In Calc before run" << endl;
 	//printDPs(ps, noDP);
@@ -720,7 +720,9 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 	// Run NetworkSimplex
 	ns.run();
 	// Print total flow cost
-	if(beVerbose||lilVerbose)printf("Total flow cost: %d\n\n", ns.totalCost());
+	if(beVerbose||lilVerbose)printf("Total flow cost: %f\n\n", ns.totalCost<double>());
+
+	std::cout << "Total cost: " << ns.totalCost<double>() << std::endl;
 
 	// Print flow values on the arcs with ArcIterator
 	if(beVerbose)printf("Flow values on arcs:\n");
@@ -750,7 +752,7 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 	//cout << "In Calc return " << endl;
 	//printDPs(ps, noDP);
 	if(beVerbose||lilVerbose)printf("*****calcEnd********\n");
-	return ns.totalCost();
+	return ns.totalCost<double>();
 }
 
 
