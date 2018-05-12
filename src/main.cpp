@@ -84,8 +84,9 @@ double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest
 void directPlot(DataPoint* dps, int noDP);
 void directPlotRegions(DataPoint* dps, int noDP,int centers[], int noCenters,int regions[],const char * title);
 void directPlotPoints(DataPoint* dps, int noDP,int centers[], int noCenters,const char * title);
-double calcRegions(DataPoint ps[],int cPoints[], int noDP, int k, int cap, int regions[]);
-double calcRegionsCS(DataPoint ps[],int cPoints[], int noDP, int k, int cap, int regions[]);
+double calcRegions(DataPoint ps[],int cPoints[], int noDP, int k, int cap, int (regions)[]);
+//template <unsigned int SIZE>double calcRegionsCS(DataPoint ps[],int cPoints[], int noDP, int k, int cap, int (&regions)[SIZE]);
+double calcRegionsCS(DataPoint ps[],int cPoints[], int noDP, int k, int cap, int* regions);
 
 std::string vertNoToString(int vertexNo,int maxNo);
 void printList( std::list<int> l);
@@ -208,8 +209,8 @@ void generateRead(){
 	int centers[2] ={1,2};
 	directPlotPoints(readDPS, noReadDPS, centers,2, "PlotWithConstructedCluster");
 
-	int k = 2;
-	int cap = 8;
+	int k = inputBucket[0][1];
+	int cap = inputBucket[0][4];
 
 	int bestC[k];
 	int bestRegs[noReadDPS];
@@ -314,7 +315,7 @@ int main() {
 
 	//readDoubleExample();
 	//readExample();
-	//exampleSearch();
+	exampleSearch();
 	//mediumExampleSearchBF();
 	generateRead();
 	return 0;
@@ -706,7 +707,7 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 
 
 //returns cost of mapping to given centers, regions is map #index of DP to index in DP of center
-double calcRegions(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int regions[]){
+double calcRegions(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int (regions)[]){
 
 
 	bool beVerbose = false;
@@ -847,7 +848,7 @@ double calcRegions(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, i
 }
 
 //returns cost of mapping to given centers, regions is map #index of DP to index in DP of center
-double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int regions[]){
+double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int* regions){
 
 	bool beVerbose = true;
 	bool lilVerbose = true;
@@ -926,12 +927,12 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 			for(int j=0;j<k;j++){
 				Node cnode = centerNodes[j];
 				newArc = g.addArc(pnode, cnode);
-				if(beVerbose)cout << g.id(g.source(newArc)) << "->" << g.id(g.target(newArc))<< endl;
+				//if(beVerbose)cout << g.id(g.source(newArc)) << "->" << g.id(g.target(newArc))<< endl;
 				capacity[newArc] = 1;
 				double costLocal= ps[i].distanceTo(ps[cPoints[j]]);
 				//if(beVerbose)ps[i].print();
 				//if(beVerbose)ps[cPoints[j]].print();
-				if(beVerbose)cout<< "ArcCost:"<< costLocal<< endl;
+				//if(beVerbose)cout<< "ArcCost:"<< costLocal<< endl;
 				cost[newArc] = costLocal;
 				arcCounter++;
 				//string tempS = "p->c";string("p: node") + i +"-> c: node "+ j +" cost:" + ps[i].distanceTo(cPoints[j]);
@@ -972,9 +973,11 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 		if(ns.flow(a)>0){
 			if(g.id(g.source(a))<noDP){
 				//indexT+1+i == centerIndex => centerID = node_CenterIndex-indexT-1
+				cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
 				int regionID = g.id(g.target(a))-indexT-1;
 
-				if(beVerbose)printf("Region Map %d->%d\n",g.id(g.source(a))+1 ,regionID);
+				if(beVerbose)printf("CS Region Map %d->%d\n",g.id(g.source(a))+1 ,regionID);
+				cout << "g.id(g.source(a)):" << g.id(g.source(a)) << endl;
 				regions[g.id(g.source(a))] = regionID;
 
 				/*
@@ -987,10 +990,12 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 				}*/
 			}
 		}
+		/*
 		if(beVerbose)printf("Arc %d: %s->%s:  %d/%d cost: %lf\n", g.id(a),
 				vertNoToString(g.id(g.source(a)),noDP).c_str(),
 				vertNoToString(g.id(g.target(a)),noDP).c_str(),
 				ns.flow(a), capacity[a] ,cost[a]);
+				*/
 	}
 	for(int i=0;i<noDP;i++){
 		//printf("Region Map %d->%d\n");
