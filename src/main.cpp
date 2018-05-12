@@ -32,8 +32,8 @@ public:
 	int centerID;
 	DataPoint* nearestCenter;
 	DataPoint(){
-		X = 0;
-		Y = 0;
+		X = 0.0;
+		Y = 0.0;
 		isCenter = false;
 		nearestCenter = NULL;
 		graphNodeIndex = -1;
@@ -52,10 +52,19 @@ public:
 		centerID = -1;
 	}
 	double distanceTo(DataPoint p){
-		double dx = abs(X - p.X);
-		double dy = abs(Y - p.Y);
+		double dx = (X - p.X);
+		double dy = (Y - p.Y);
 		//return max(dx,dy);
 		return sqrt(dx*dx + dy*dy);
+
+	}
+	void print(){
+		std::cout <<"....." <<std::endl;
+		std::cout <<"p.X:"<< X << "p.Y:" << Y << std::endl;
+		std::cout << "p.isCenter: " << isCenter << std::endl;
+		std::cout << "p.graphNodeIndex: " << graphNodeIndex << std::endl;
+		std::cout << "p.centerID: " << centerID << std::endl;
+		std::cout <<"....." <<std::endl;
 	}
 };
 
@@ -294,7 +303,7 @@ int main() {
 
 	//readDoubleExample();
 	//readExample();
-	//exampleSearch();
+	exampleSearch();
 	//mediumExampleSearchBF();
 	generateRead();
 	return 0;
@@ -909,6 +918,8 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 				if(beVerbose)cout << g.id(g.source(newArc)) << "->" << g.id(g.target(newArc))<< endl;
 				capacity[newArc] = 1;
 				double costLocal= ps[i].distanceTo(ps[cPoints[j]]);
+				if(beVerbose)ps[i].print();
+				if(beVerbose)ps[cPoints[j]].print();
 				if(beVerbose)cout<< "ArcCost:"<< costLocal<< endl;
 				cost[newArc] = costLocal;
 				arcCounter++;
