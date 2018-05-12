@@ -194,17 +194,24 @@ void generateRead(){
 	int bestC[k];
 	int bestRegs[noReadDPS];
 
-	bruteForceSearch(readDPS, noReadDPS,  k,  cap,bestRegs, bestC);
+	double bCost = bruteForceSearch(readDPS, noReadDPS,  k,  cap,bestRegs, bestC);
 
 	updateCenterOfDPS(readDPS,noReadDPS,bestC,k);
 
-	directPlotRegions(readDPS, noReadDPS,bestC, k,bestRegs,"bruteForceSeach");
+	std::ostringstream strs;
+	strs << bCost;
+	std::string str = strs.str();
+	string plotName = string("bruteForceSeach Cost:") + str;
+	directPlotRegions(readDPS, noReadDPS,bestC, k,bestRegs,plotName.c_str());
 
-	localSearch(readDPS, noReadDPS,  k,  cap, bestRegs, bestC);
+	double lsCost = localSearch(readDPS, noReadDPS,  k,  cap, bestRegs, bestC);
 
 	updateCenterOfDPS(readDPS,noReadDPS,bestC,k);
-
-	directPlotRegions(readDPS, noReadDPS,bestC, k,bestRegs,"localSeach");
+	std::ostringstream strs2;
+	strs2 << lsCost;
+	str = strs.str();
+	plotName = string("localSeach Cost:") + str;
+	directPlotRegions(readDPS, noReadDPS,bestC, k,bestRegs,plotName.c_str());
 
 }
 
@@ -835,8 +842,8 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 	//Digraph::NodeMap<string>
 	IntArcMap name(g);
 	//StringArcMap name(g);
-	Node nodesGraph[noDP+2];
-
+	Node nodesGraph[noDP+2+k];
+	Node centerNodes[k];
 	//for all points
 	//add vertex
 	for(int i=0;i<noDP;i++){
@@ -844,6 +851,14 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 		nodesGraph[i] = g.addNode();
 		supply[nodesGraph[i]] = 0;
 	}
+
+	// add s and t
+
+	nodesGraph[noDP] = g.addNode();
+	nodesGraph[noDP+1] = g.addNode();
+	int indexS = noDP;
+	int indexT = noDP+1;
+
 	//make note of centers for later
 	int cPoints[k];
 
@@ -851,6 +866,8 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 	for(int i=0;i<noDP;i++){
 		if (ps[i].isCenter){
 			cPoints[counter]=i;
+			centerNodes[counter]=g.addNode();
+			nodesGraph[indexT+1+i]=centerNodes[counter];
 			counter++;
 		}
 	}
@@ -863,34 +880,21 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 
 	//cout << "In Calc after Nodes init" << endl;
 	//printDPs(ps, noDP);
-	// add s and t
-	nodesGraph[noDP] = g.addNode();
-	nodesGraph[noDP+1] = g.addNode();
-	int indexS = noDP;
-	int indexT = noDP+1;
 
-	int demand = (noDP-k);
+
+	int demand = (noDP);
 	if(beVerbose)cout << "demand:" << demand << endl;
 	supply[nodesGraph[indexS]] = (demand);
 	supply[nodesGraph[indexT]] = -(demand);
 
-	int numberOfArcs = (noDP-k)*(k+1)+k;
-	if(beVerbose)cout << "numberOfArcs:" << numberOfArcs << endl;
+	int numberOfArcs = (noDP)*(k+1)+k;
+	if(beVerbose)cout << "expected numberOfArcs:" << numberOfArcs << endl;
 
 	int arcCounter = 0;
+	Arc newArc;
+	Node pnode;
 	//for all points
 	for(int i=0;i<noDP;i++){
-		Arc newArc;
-		Node pnode;
-		if (ps[i].isCenter){
-			//// add arc c->t , cost 0, flowcap cap
-			pnode = nodesGraph[ps[i].graphNodeIndex];
-			newArc = g.addArc(pnode,nodesGraph[indexT]);
-			capacity[newArc] = cap;
-			cost[newArc] = 0;
-			arcCounter++;
-			//arcNames[arcCounter] = "c->t";//string("c: node") + std::to_string(i) + "-> t";
-		}else{
 			//// add arc s->p , cost 0, flowcap 1
 			pnode = nodesGraph[ps[i].graphNodeIndex];
 			newArc = g.addArc(nodesGraph[indexS],pnode);
@@ -900,7 +904,7 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 			//arcNames[arcCounter] = "s->p";//string("S -> node") + i;
 			//forall c add p->c cost dist, flowcap 1
 			for(int j=0;j<k;j++){
-				Node cnode = nodesGraph[ps[cPoints[j]].graphNodeIndex];
+				Node cnode = centerNodes[j];
 				newArc = g.addArc(pnode, cnode);
 				if(beVerbose)cout << g.id(g.source(newArc)) << "->" << g.id(g.target(newArc))<< endl;
 				capacity[newArc] = 1;
@@ -911,8 +915,17 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 				//string tempS = "p->c";string("p: node") + i +"-> c: node "+ j +" cost:" + ps[i].distanceTo(cPoints[j]);
 				//arcNames[arcCounter] ="p->c";;
 			}
-		}
-	}
+	} //end for all point nodes
+	for(int j=0;j<k;j++){
+		//// add arc c->t , cost 0, flowcap cap
+		pnode = centerNodes[j];
+		newArc = g.addArc(pnode,nodesGraph[indexT]);
+		capacity[newArc] = cap;
+		cost[newArc] = 0;
+		arcCounter++;
+		//arcNames[arcCounter] = "c->t";//string("c: node") + std::to_string(i) + "-> t";
+	}//for all center nodes
+
 	if(beVerbose||lilVerbose)printf("Input graph created with %d nodes and %d arcs\n\n",
 			countNodes(g), countArcs(g));
 	// Initialize NetworkSimplex algorithm object
@@ -936,13 +949,20 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 		//if it is not s or t
 		if(ns.flow(a)>0){
 			if(g.id(g.source(a))<noDP){
+				//indexT+1+i == centerIndex => centerID = node_CenterIndex-indexT-1
+				int regionID = g.id(g.target(a))-indexT-1;
+
+				if(beVerbose)printf("Region Map %d->%d\n",g.id(g.source(a))+1 ,regionID);
+				regions[g.id(g.source(a))] = regionID;
+
+				/*
 				if(g.id(g.target(a))<noDP){
 					if(beVerbose)printf("Region Map %d->%d\n",g.id(g.source(a))+1 ,g.id(g.target(a))+1);
 					regions[g.id(g.source(a))] = g.id(g.target(a));
 				}else{
 					if(beVerbose)printf("Region Map %d-is Center\n",g.id(g.source(a))+1);
 					regions[g.id(g.source(a))] = g.id(g.source(a));
-				}
+				}*/
 			}
 		}
 		if(beVerbose)printf("Arc %d: %s->%s:  %d/%d cost: %lf\n", g.id(a),
@@ -952,7 +972,7 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 	}
 	for(int i=0;i<noDP;i++){
 		//printf("Region Map %d->%d\n");
-		if(beVerbose)printf("index %d value %d\n",i+1,regions[i]+1);
+		if(beVerbose)printf("index %d value %d\n",i+1,regions[i]);
 	}
 
 	//cout << "In Calc return " << endl;
@@ -1120,7 +1140,8 @@ void directPlotRegions(DataPoint* dps, int noDP,int centers[], int noCenters,int
 	int j;
 	for (j=0; j < noDP; j++)
 	{
-		fprintf(gnuplotPipe, "plot '-' w p ls %d t \"DataPoints %d \" \n",dps[regions[j]].centerID%9+1,dps[regions[j]].centerID%9+1);
+		//fprintf(gnuplotPipe, "plot '-' w p ls %d t \"DataPoints %d \" \n",dps[regions[j]].centerID%9+1,dps[regions[j]].centerID%9+1);
+		fprintf(gnuplotPipe, "plot '-' w p ls %d t \"DataPoints %d \" \n",regions[j]%9+1,regions[j]%9+1);
 		fprintf(gnuplotPipe, "%lf %lf\n", dps[j].X, dps[j].Y);
 		fprintf(gnuplotPipe, "e\n");
 	}
