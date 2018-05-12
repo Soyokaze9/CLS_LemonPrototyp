@@ -59,6 +59,8 @@ public:
 	}
 };
 
+
+
 //int example1();
 //int example2();
 //int example3();
@@ -79,24 +81,85 @@ std::string vertNoToString(int vertexNo,int maxNo);
 void printList( std::list<int> l);
 void printList( std::list<std::list<int>> l);
 void printVector( std::vector< std::vector<int> > v);
+void printDPs(DataPoint ps[], int noDP);
 void subset(int arr[], int size, int left, int index, std::list<int> &l, std::list<std::list<int>> &all);
 
 
 using namespace lemon;
 using namespace std;
 
+int plotmin = 0;
+int plotmax = 10;
+
+int createDPSFromInput(Data dataBucket,DataPoint dps[]){
+	for(std::size_t i=0; i < dataBucket.size(); ++i){
+		//for(std::size_t j=0; j < dataBucket[i].size(); ++j)
+			//dataBucket[i][j];
+		dps[i] = DataPoint(dataBucket[i][0],dataBucket[i][1]);
+	}
+	return dataBucket.size();
+}
+
+int createDataFile(int noPoints,int cluster, std::string filename){
+
+	std::string fname = string("./res/") + filename;
+	std::ofstream out(fname);
+
+    for(int i=0;i<noPoints;++i){
+    	//std::string input = string("1,");
+    	out << "1," << i;
+    	out << endl;
+    }
+	out.close();
+    return 0;
+
+}
+
+void generateRead(){
+	Data dataBucket;
+	int extremes[2];
+	createDataFile(12,1, "2d-test-gen");
+	readIntsFromFile("./res/2d-test-gen",dataBucket,extremes);
+	plotmin=extremes[0];
+	plotmax=extremes[1];
+	DataPoint readDPS [dataBucket.size()];
+	int noReadDPS = createDPSFromInput(dataBucket,readDPS);
+	printDPs(readDPS,noReadDPS);
+	directPlot(readDPS,noReadDPS);
+}
+
+void readExample(){
+	Data dataBucket;
+		int extremes[2];
+		//readIntsFromFile("filereader-test",dataBucket);//char del optional;
+		readIntsFromFile("./res/2d-test",dataBucket,extremes);
+		cout << "main" << endl;
+		printVector(dataBucket);
+		cout << "after pv" << endl;
+		// Output to see if everything was read correctly
+		for(std::size_t i=0; i < dataBucket.size(); ++i){
+			for(std::size_t j=0; j < dataBucket[i].size(); ++j){
+				std::cout << std::setw(5) << dataBucket[i][j] << " ";
+			}
+			std::cout << std::endl;
+		}
+
+		cout<< "Max: "<< extremes[1] << " Min: " << extremes[0] << endl;
+
+		plotmin=extremes[0];
+		plotmax=extremes[1];
+
+		DataPoint readDPS [dataBucket.size()];
+		int noReadDPS = createDPSFromInput(dataBucket,readDPS);
+
+		printDPs(readDPS,noReadDPS);
+		directPlot(readDPS,noReadDPS);
+
+}
+
+
 //main
 int main() {
-	/*
-	int no = 5;
-    double xvals[no] = {1.0, 2.0, 3.0, 4.0, 5.0};
-    double yvals[no] = {5.0 ,3.0, 1.0, 3.0, 5.0};
-    DataPoint dps[no];
-    for(int i=0;i<no;i++){
-    	dps[i] = DataPoint(xvals[i],yvals[i]);
-    }
-	 */
-	//exampleLoopWithPlot();
 
 	/*
     int array[5]={1,2,3,4,5};
@@ -110,22 +173,11 @@ int main() {
 
 	 */
 
-	Data dataBucket;
-	//readIntsFromFile("filereader-test",dataBucket);//char del optional;
-	readIntsFromFile("./res/filereader-test",dataBucket);
-	cout << "main" << endl;
-	printVector(dataBucket);
-	cout << "after pv" << endl;
-	// Output to see if everything was read correctly
-	for(std::size_t i=0; i < dataBucket.size(); ++i){
-		for(std::size_t j=0; j < dataBucket[i].size(); ++j){
-			std::cout << std::setw(5) << dataBucket[i][j] << " ";
-		}
-		std::cout << std::endl;
-	}
 
+	generateRead();
+	//readExample();
 	//exampleSearch();
-	mediumExampleSearchBF();
+	//mediumExampleSearchBF();
 	return 0;
 }
 
@@ -326,6 +378,8 @@ void printDPs(DataPoint ps[], int noDP){
 	cout << "+++++dps++++++" << endl;
 	for(int k=0;k<noDP;k++){
 		cout << "----p:" << k << endl;
+		cout << "ps[k].X: " << ps[k].X << endl;
+		cout << "ps[k].Y: " << ps[k].Y << endl;
 		cout << "ps[k].isCenter: " << ps[k].isCenter << endl;
 		cout << "ps[k].graphNodeIndex: " << ps[k].graphNodeIndex << endl;
 		cout << "ps[k].centerID: " << ps[k].centerID << endl;
@@ -630,8 +684,8 @@ double calcRegions(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, i
 //returns cost of mapping to given centers, regions is map #index of DP to index in DP of center
 double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int regions[]){
 
-	bool beVerbose = true;
-	bool lilVerbose = true;
+	bool beVerbose = false;
+	bool lilVerbose = false;
 	if(beVerbose||lilVerbose)printf("*****calcBegin********\n");
 	//create graph
 	DIGRAPH_TYPEDEFS(SmartDigraph);
@@ -841,10 +895,8 @@ double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap){
 void initPlotForFileLink(FILE * gnuplotPipe,const char * title){
 
 	//int ColorCode[noDP];
-	int noCMDs = 12;
+	int noCMDs = 10;
 	const char * commandsForGnuplot[] = {
-			"set xrange [0:10]",
-			"set yrange [0:10]",
 			"set style line 1 lc rgb 'black' pt 5 ps 1  # square",
 			"set style line 2 lc rgb 'green' pt 7 ps 1  # circle",
 			"set style line 3 lc rgb 'blue' pt 9   # triangle",
@@ -856,6 +908,11 @@ void initPlotForFileLink(FILE * gnuplotPipe,const char * title){
 			"set style line 9 lc rgb 'red' pt 9   # triangle",
 			"set style line 11 lc rgb 'red' pt 7 ps 2  # circle for center"
 	};
+
+	printf("set xrange [%d:%d]\n", plotmin, plotmax);
+	fprintf(gnuplotPipe, "set xrange [%d:%d]\n", plotmin-1, plotmax+1);
+	fprintf(gnuplotPipe, "set yrange [%d:%d]\n", plotmin-1, plotmax+1);
+
 	printf("set title %s \n", title);
 	fprintf(gnuplotPipe, "set title \"%s\" \n", title);
 	for (int j=0; j < noCMDs;j++)
