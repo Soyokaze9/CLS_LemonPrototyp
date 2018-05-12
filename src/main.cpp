@@ -69,8 +69,9 @@ void exampleSearchBF();
 void simpleExampleSearchBF();
 void mediumExampleSearchBF();
 void exampleLoopWithPlot();
+void generateRead();
 double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],int cPointsBest[],bool print=false);
-double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap);
+double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],int cPointsBest[]);
 void directPlot(DataPoint* dps, int noDP);
 void directPlotRegions(DataPoint* dps, int noDP,int centers[], int noCenters,int regions[],const char * title);
 void directPlotPoints(DataPoint* dps, int noDP,int centers[], int noCenters,const char * title);
@@ -137,21 +138,22 @@ int createDataFile(int noPoints,int cluster,double clusterDist,double inClusterD
 
 	srand (time(NULL));
 	//seed:1526051006
-	srand (1526051006);
+	//srand (1526051006);
 
 	double maxIn = cluster*1.1*clusterDist+2*inClusterDist;
 
 	int pPerC = noPoints/cluster;
-
+	double clusterCenters[cluster];
 	for(int i=0;i<cluster;i++){
-    	out << i*clusterDist+ fRand(0,(clusterDist*0.1))-(clusterDist*0.1)/2.0 << ",1.0";
+		clusterCenters[i] = i*clusterDist+ fRand(0,(clusterDist*0.1))-(clusterDist*0.1)/2.0 ;
+		out << clusterCenters[i] << ",1.0";
     	out << endl;
 		//i*clusterDist+ frand(0,(clusterDist*0.1));
 	}
 
     for(int i=0;i<(noPoints-cluster);i++){
     	//std::string input = string("1,");
-    	out << floor(i/pPerC)*clusterDist+ fRand(0,(inClusterDist*0.1))- (inClusterDist*0.1)/2 << ",1.0";
+    	out << clusterCenters[(int)floor(i/pPerC)] + fRand(0,(inClusterDist))- (inClusterDist)/2 << ",1.0";
     	out << endl;
     }
 	out.close();
@@ -175,16 +177,34 @@ void generateRead(){
 	DataDouble dataBucket;
 	double extremes[2];
 	//(int noPoints,int cluster,double clusterDist,double inClusterDist
-	createDataFile(12,2,4,1, "2dd-test-gen");
+	createDataFile(15,2,30,8, "2dd-test-gen");
 	readDoublesFromFile("./res/2dd-test-gen",dataBucket,extremes);
 	plotmin=extremes[0];
 	plotmax=extremes[1];
 	DataPoint readDPS [dataBucket.size()];
 	int noReadDPS = createDPSFromInput(dataBucket,readDPS);
-	printDPs(readDPS,noReadDPS);
-	directPlot(readDPS,noReadDPS);
+	//printDPs(readDPS,noReadDPS);
+	//directPlot(readDPS,noReadDPS);
 	int centers[2] ={1,2};
 	directPlotPoints(readDPS, noReadDPS, centers,2, "PlotWithConstructedCluster");
+
+	int k = 2;
+	int cap = 8;
+
+	int bestC[k];
+	int bestRegs[noReadDPS];
+
+	bruteForceSearch(readDPS, noReadDPS,  k,  cap,bestRegs, bestC);
+
+	updateCenterOfDPS(readDPS,noReadDPS,bestC,k);
+
+	directPlotRegions(readDPS, noReadDPS,bestC, k,bestRegs,"bruteForceSeach");
+
+	localSearch(readDPS, noReadDPS,  k,  cap, bestRegs, bestC);
+
+	updateCenterOfDPS(readDPS,noReadDPS,bestC,k);
+
+	directPlotRegions(readDPS, noReadDPS,bestC, k,bestRegs,"localSeach");
 
 }
 
@@ -265,12 +285,10 @@ int main() {
 	 */
 
 
-	readDoubleExample();
-	//generateRead();
+	//readDoubleExample();
 	//readExample();
 	//exampleSearch();
-	mediumExampleSearchBF();
-
+	//mediumExampleSearchBF();
 	generateRead();
 	return 0;
 }
@@ -292,7 +310,7 @@ void exampleSearchBF(){
 	//p6.isCenter = true;
 	//p7.isCenter = true;
 	DataPoint ps[noDP] = {p1,p2,p3,p4,p5,p6,p7,p8};
-	bruteForceSearch(ps, noDP,  k,  cap);
+	bruteForceSearch(ps, noDP,  k,  cap, NULL,NULL);
 
 }
 
@@ -306,7 +324,7 @@ void simpleExampleSearchBF(){
 	DataPoint p3(3,1);
 	DataPoint ps[noDP] = {p1,p2,p3};
 
-	bruteForceSearch(ps, noDP,  k,  cap);
+	bruteForceSearch(ps, noDP,  k,  cap, NULL,NULL);
 }
 
 void mediumExampleSearchBF(){
@@ -325,10 +343,15 @@ void mediumExampleSearchBF(){
 
 	DataPoint ps[noDP] = {p1,p2,p3,p4,p5,p6};
 
-	bruteForceSearch(ps, noDP,  k,  cap);
-
 	int bestC[k];
 	int bestRegs[noDP];
+
+	bruteForceSearch(ps, noDP,  k,  cap,bestRegs, bestC);
+
+	updateCenterOfDPS(ps,noDP,bestC,k);
+
+	directPlotRegions(ps, noDP,bestC, k,bestRegs,"bruteForceSeach");
+
 	localSearch(ps, noDP,  k,  cap, bestRegs, bestC);
 
 	updateCenterOfDPS(ps,noDP,bestC,k);
@@ -498,7 +521,7 @@ void printDPs(DataPoint ps[], int noDP){
 //
 double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],int cPointsBest[], bool printEachImprovement){
 
-	bool beVerbose = false;
+	bool beVerbose = true;
 	//start with random centers
 	int cPoints[k];
 	int cPointsNew[k];
@@ -604,11 +627,14 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 						const char* cstr = formatedStr.c_str();
 						if(printEachImprovement)directPlotRegions(ps, noDP,cPoints, k,regions,cstr);
 
-						for(int p=0;p<k;p++){
-							cPointsBest[p]=cPoints[p];
-						}
-						for(int v=0;v<noDP;v++){
-							regionsBest[v]=regions[v];
+						if(cPointsBest!=NULL && regionsBest!=NULL){
+							for(int p=0;p<k;p++){
+								cPointsBest[p]=cPoints[p];
+							}
+							for(int v=0;v<noDP;v++){
+								regionsBest[v]=regions[v];
+							}
+
 						}
 
 						break;
@@ -796,8 +822,8 @@ double calcRegions(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, i
 //returns cost of mapping to given centers, regions is map #index of DP to index in DP of center
 double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int regions[]){
 
-	bool beVerbose = false;
-	bool lilVerbose = false;
+	bool beVerbose = true;
+	bool lilVerbose = true;
 	if(beVerbose||lilVerbose)printf("*****calcBegin********\n");
 	//create graph
 	DIGRAPH_TYPEDEFS(SmartDigraph);
@@ -936,14 +962,14 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 }
 
 
-double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap){
+double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],int cPointsBest[]){
 	//start with random centers
 	int cPoints[k];
-	int cPointsNew[k];
+	//int cPointsNew[k];
 	int regions[noDP];
-	int regionsNew[noDP];
+	//int regionsNew[noDP];
 
-	bool beVerbose = true;
+	bool beVerbose = false;
 
     int indArray[noDP];
     for(int j=0;j<noDP;j++) indArray[j]=j;
@@ -981,7 +1007,6 @@ double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap){
 
     	if(newCost<currentCost){
     		currentCost = newCost;
-
     		/*
     		std::ostringstream stringStream;
     		stringStream << "pairNo: "  << pairNo <<" with cost:"<<newCost;
@@ -990,6 +1015,16 @@ double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap){
     		directPlotRegions(ps, noDP,cPoints, k,regions,cstr);
     		*/
     		//save centerIndices and region
+
+			if(cPointsBest!=NULL && regionsBest!=NULL){
+				for(int p=0;p<k;p++){
+					cPointsBest[p]=cPoints[p];
+				}
+				for(int v=0;v<noDP;v++){
+					regionsBest[v]=regions[v];
+				}
+
+			}
     	}
     }
 	 // reset centers
