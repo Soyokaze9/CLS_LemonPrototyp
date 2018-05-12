@@ -100,6 +100,15 @@ int createDPSFromInput(Data dataBucket,DataPoint dps[]){
 	return dataBucket.size();
 }
 
+int createDPSFromInput(DataDouble dataBucket,DataPoint dps[]){
+	for(std::size_t i=0; i < dataBucket.size(); ++i){
+		//for(std::size_t j=0; j < dataBucket[i].size(); ++j)
+			//dataBucket[i][j];
+		dps[i] = DataPoint(dataBucket[i][0],dataBucket[i][1]);
+	}
+	return dataBucket.size();
+}
+
 int createDataFileTest(int noPoints,int cluster, std::string filename){
 
 	std::string fname = string("./res/") + filename;
@@ -115,10 +124,28 @@ int createDataFileTest(int noPoints,int cluster, std::string filename){
 
 }
 
-int createDataFile(int noPoints,int cluster, std::string filename){
+double fRand(double fMin, double fMax)
+{
+    double f = (double)rand() / RAND_MAX;
+    return fMin + f * (fMax - fMin);
+}
+
+int createDataFile(int noPoints,int cluster,double clusterDist,double inClusterDist, std::string filename){
 
 	std::string fname = string("./res/") + filename;
 	std::ofstream out(fname);
+
+	srand (time(NULL));
+	//seed:1526051006
+	srand (1526051006);
+
+	double maxIn = cluster*1.1*clusterDist+2*inClusterDist;
+
+	for(int i=0;i<cluster;++i){
+    	out << "1," << i*clusterDist+ fRand(0,(clusterDist*0.1));
+    	out << endl;
+		//i*clusterDist+ frand(0,(clusterDist*0.1));
+	}
 
     for(int i=0;i<noPoints;++i){
     	//std::string input = string("1,");
@@ -127,13 +154,26 @@ int createDataFile(int noPoints,int cluster, std::string filename){
     }
 	out.close();
     return 0;
+}
 
+void generateReadTest(){
+	Data dataBucket;
+	int extremes[2];
+	createDataFileTest(12,1, "2d-test-gen");
+	readIntsFromFile("./res/2d-test-gen",dataBucket,extremes);
+	plotmin=extremes[0];
+	plotmax=extremes[1];
+	DataPoint readDPS [dataBucket.size()];
+	int noReadDPS = createDPSFromInput(dataBucket,readDPS);
+	printDPs(readDPS,noReadDPS);
+	directPlot(readDPS,noReadDPS);
 }
 
 void generateRead(){
 	Data dataBucket;
 	int extremes[2];
-	createDataFileTest(12,1, "2d-test-gen");
+	//(int noPoints,int cluster,double clusterDist,double inClusterDist
+	createDataFile(12,2,4,1, "2d-test-gen");
 	readIntsFromFile("./res/2d-test-gen",dataBucket,extremes);
 	plotmin=extremes[0];
 	plotmax=extremes[1];
@@ -172,6 +212,39 @@ void readExample(){
 
 }
 
+void readDoubleExample(){
+	DataDouble dataBucket;
+	double extremes[2];
+	//readIntsFromFile("filereader-test",dataBucket);//char del optional;
+	//readIntsFromFile("./res/2DD-test",dataBucket,extremes);
+	readDoublesFromFile("./res/2DD-test",dataBucket,extremes);
+
+
+	cout << "main" << endl;
+	//printVector(dataBucket);
+	cout << "after pv" << endl;
+	// Output to see if everything was read correctly
+	for(std::size_t i=0; i < dataBucket.size(); ++i){
+		for(std::size_t j=0; j < dataBucket[i].size(); ++j){
+			std::cout << std::setw(5) << dataBucket[i][j] << " ";
+		}
+		std::cout << std::endl;
+	}
+
+	cout<< "Max: "<< extremes[1] << " Min: " << extremes[0] << endl;
+
+	plotmin=extremes[0];
+	plotmax=extremes[1];
+
+	DataPoint readDPS [dataBucket.size()];
+	int noReadDPS = createDPSFromInput(dataBucket,readDPS);
+
+	printDPs(readDPS,noReadDPS);
+	directPlot(readDPS,noReadDPS);
+
+}
+
+
 
 //main
 int main() {
@@ -189,7 +262,8 @@ int main() {
 	 */
 
 
-	generateRead();
+	readDoubleExample();
+	//generateRead();
 	//readExample();
 	//exampleSearch();
 	mediumExampleSearchBF();
@@ -234,7 +308,7 @@ void mediumExampleSearchBF(){
 
 	int noDP = 6;
 	int k = 2;
-	int cap = 2;
+	int cap = 3;
 	DataPoint p1(1,1);
 	DataPoint p2(2,1);
 	DataPoint p3(3,1);
