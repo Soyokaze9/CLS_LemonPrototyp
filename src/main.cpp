@@ -125,7 +125,7 @@ int main() {
 	}
 
 	//exampleSearch();
-	//mediumExampleSearchBF();
+	mediumExampleSearchBF();
 	return 0;
 }
 
@@ -917,7 +917,8 @@ void directPlotRegions(DataPoint* dps, int noDP,int centers[], int noCenters,int
 	int j;
 	for (j=0; j < noDP; j++)
 	{
-		fprintf(gnuplotPipe, "plot '-' w p ls %d t \"DataPoints %d \" \n",regions[j]%9+1,regions[j]%9+1);
+		//fprintf(gnuplotPipe, "plot '-' w p ls %d t \"DataPoints %d \" \n",regions[j]%9+1,regions[j]%9+1);
+		fprintf(gnuplotPipe, "plot '-' w p ls %d t \"DataPoints %d \" \n",dps[regions[j]].centerID%9+1,dps[regions[j]].centerID%9+1);
 		fprintf(gnuplotPipe, "%lf %lf\n", dps[j].X, dps[j].Y);
 		fprintf(gnuplotPipe, "e\n");
 	}
