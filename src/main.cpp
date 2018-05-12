@@ -217,6 +217,9 @@ void generateRead(){
 
 	double bCost = bruteForceSearch(readDPS, noReadDPS,  k,  cap,bestRegs, bestC);
 
+	cout <<"---- after bfSeach:\n";
+	printDPs(readDPS,noReadDPS);
+
 	updateCenterOfDPS(readDPS,noReadDPS,bestC,k);
 
 	std::ostringstream strs;
@@ -225,14 +228,21 @@ void generateRead(){
 	string plotName = string("bruteForceSeach Cost:") + str;
 	directPlotRegions(readDPS, noReadDPS,bestC, k,bestRegs,plotName.c_str());
 
-	double lsCost = localSearch(readDPS, noReadDPS,  k,  cap, bestRegs, bestC);
 
-	updateCenterOfDPS(readDPS,noReadDPS,bestC,k);
+	int bestC2[k];
+	int bestRegs2[noReadDPS];
+
+	double lsCost = localSearch(readDPS, noReadDPS,  k,  cap, bestRegs2, bestC2);
+
+	cout <<"---- after localSeach:\n";
+	printDPs(readDPS,noReadDPS);
+
+	updateCenterOfDPS(readDPS,noReadDPS,bestC2,k);
 	std::ostringstream strs2;
 	strs2 << lsCost;
 	std::string str2 = strs.str();
 	plotName = string("localSeach Cost:") + str2;
-	directPlotRegions(readDPS, noReadDPS,bestC, k,bestRegs,plotName.c_str());
+	directPlotRegions(readDPS, noReadDPS,bestC2, k,bestRegs2,plotName.c_str());
 
 }
 
@@ -561,6 +571,12 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 	//seed:1526051006
 	srand (1526051006);
 
+	//make sure no centers are set
+	 for(int j=0;j<noDP;j++){
+		ps[j].isCenter = false;
+		ps[j].centerID = -1;
+	 }
+
 	if(beVerbose)cout << "srand seed:" << time(NULL) << endl;
 	for(int i=0;i<k;i++){
 		bool notFound = true;
@@ -850,8 +866,9 @@ double calcRegions(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, i
 //returns cost of mapping to given centers, regions is map #index of DP to index in DP of center
 double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int* regions){
 
-	bool beVerbose = true;
-	bool lilVerbose = true;
+	bool beVerbose = false;
+	bool lilVerbose = false;
+	bool graphVerbose = true;
 	if(beVerbose||lilVerbose)printf("*****calcBegin********\n");
 	//create graph
 	DIGRAPH_TYPEDEFS(SmartDigraph);
@@ -973,11 +990,11 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 		if(ns.flow(a)>0){
 			if(g.id(g.source(a))<noDP){
 				//indexT+1+i == centerIndex => centerID = node_CenterIndex-indexT-1
-				cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
+				if(beVerbose)cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
 				int regionID = g.id(g.target(a))-indexT-1;
 
 				if(beVerbose)printf("CS Region Map %d->%d\n",g.id(g.source(a))+1 ,regionID);
-				cout << "g.id(g.source(a)):" << g.id(g.source(a)) << endl;
+				if(beVerbose)cout << "g.id(g.source(a)):" << g.id(g.source(a)) << endl;
 				regions[g.id(g.source(a))] = regionID;
 
 				/*
@@ -990,12 +1007,12 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 				}*/
 			}
 		}
-		/*
-		if(beVerbose)printf("Arc %d: %s->%s:  %d/%d cost: %lf\n", g.id(a),
+
+		if(beVerbose||graphVerbose)printf("Arc %d: %s->%s:  %d/%d cost: %lf\n", g.id(a),
 				vertNoToString(g.id(g.source(a)),noDP).c_str(),
 				vertNoToString(g.id(g.target(a)),noDP).c_str(),
 				ns.flow(a), capacity[a] ,cost[a]);
-				*/
+
 	}
 	for(int i=0;i<noDP;i++){
 		//printf("Region Map %d->%d\n");
@@ -1194,8 +1211,11 @@ std::string vertNoToString(int vertexNo,int maxNo){
 	if(vertexNo<maxNo){
 		retString = my_to_string(vertexNo+1);
 	}else{
-		if(vertexNo==maxNo) retString = "S";
-		else retString = "T";
+		if(vertexNo<maxNo+2){
+			if(vertexNo==maxNo) retString = "S";
+					else retString = "T";
+		}else
+			retString = my_to_string(vertexNo-maxNo-1);
 	}
 	return retString;
 }
@@ -1246,6 +1266,7 @@ void updateCenterOfDPS(DataPoint ps[],int noDP,int center[],int k){
 	 }
 	 for(int j=0;j<k;j++){
 		int ind = center[j];
+		cout << "center Index:" <<ind << endl;
 		ps[ind].isCenter = true;
 		ps[ind].centerID = j;
 	 }
