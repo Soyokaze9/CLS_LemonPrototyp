@@ -7,19 +7,18 @@
 #include <list>
 #include <float.h>
 
-//#include <lemon/concepts/graph.h>
 #include <lemon/smart_graph.h>
-#include <lemon/network_simplex.h>
 
 #include <lemon/maps.h>
 #include <lemon/list_graph.h>
 #include <lemon/capacity_scaling.h>
+#include <lemon/network_simplex.h>
 #include <lemon/preflow.h>
-//#include <lemon/capacity_scaling.h>
-
 #include <lemon/lgf_reader.h>
 #include <lemon/lgf_writer.h>
 #include <lemon/dimacs.h>
+
+#include "filereader.hpp"
 
 //classes
 class DataPoint{
@@ -79,6 +78,7 @@ double calcRegionsCS(DataPoint ps[],int cPoints[], int noDP, int k, int cap, int
 std::string vertNoToString(int vertexNo,int maxNo);
 void printList( std::list<int> l);
 void printList( std::list<std::list<int>> l);
+void printVector( std::vector< std::vector<int> > v);
 void subset(int arr[], int size, int left, int index, std::list<int> &l, std::list<std::list<int>> &all);
 
 
@@ -110,8 +110,22 @@ int main() {
 
 	 */
 
+	Data dataBucket;
+	//readIntsFromFile("filereader-test",dataBucket);//char del optional;
+	readIntsFromFile("./res/filereader-test",dataBucket);
+	cout << "main" << endl;
+	printVector(dataBucket);
+	cout << "after pv" << endl;
+	// Output to see if everything was read correctly
+	for(std::size_t i=0; i < dataBucket.size(); ++i){
+		for(std::size_t j=0; j < dataBucket[i].size(); ++j){
+			std::cout << std::setw(5) << dataBucket[i][j] << " ";
+		}
+		std::cout << std::endl;
+	}
+
 	//exampleSearch();
-	mediumExampleSearchBF();
+	//mediumExampleSearchBF();
 	return 0;
 }
 
@@ -946,6 +960,17 @@ void printList( list<int> l){
 void printList( list<list<int>> l){
     for(list<list<int>>::iterator it=l.begin(); it!=l.end() ; ++it)
          printList(*it) ;
+}
+
+void printVector( std::vector<int> v){
+    for(std::vector<int>::iterator it=v.begin(); it!=v.end() ; ++it)
+            cout << " " << *it;
+    cout<<endl;
+}
+
+void printVector( std::vector< std::vector<int> > v){
+    for(std::vector<std::vector<int>>::iterator it=v.begin(); it!=v.end() ; ++it)
+         printVector(*it) ;
 }
 
 void subset(int arr[], int size, int left, int index, list<int> &l, list<list<int>> &all){
