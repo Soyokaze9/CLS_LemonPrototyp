@@ -69,7 +69,7 @@ void exampleSearchBF();
 void simpleExampleSearchBF();
 void mediumExampleSearchBF();
 void exampleLoopWithPlot();
-double localSearch(DataPoint ps[], int noDP, int k, int cap);
+double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],int cPointsBest[],bool print=false);
 double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap);
 void directPlot(DataPoint* dps, int noDP);
 void directPlotRegions(DataPoint* dps, int noDP,int centers[], int noCenters,int regions[],const char * title);
@@ -83,7 +83,7 @@ void printList( std::list<std::list<int>> l);
 void printVector( std::vector< std::vector<int> > v);
 void printDPs(DataPoint ps[], int noDP);
 void subset(int arr[], int size, int left, int index, std::list<int> &l, std::list<std::list<int>> &all);
-
+void updateCenterOfDPS(DataPoint ps[],int noDP,int center[],int k);
 
 using namespace lemon;
 using namespace std;
@@ -98,6 +98,21 @@ int createDPSFromInput(Data dataBucket,DataPoint dps[]){
 		dps[i] = DataPoint(dataBucket[i][0],dataBucket[i][1]);
 	}
 	return dataBucket.size();
+}
+
+int createDataFileTest(int noPoints,int cluster, std::string filename){
+
+	std::string fname = string("./res/") + filename;
+	std::ofstream out(fname);
+
+    for(int i=0;i<noPoints;++i){
+    	//std::string input = string("1,");
+    	out << "1," << i;
+    	out << endl;
+    }
+	out.close();
+    return 0;
+
 }
 
 int createDataFile(int noPoints,int cluster, std::string filename){
@@ -118,7 +133,7 @@ int createDataFile(int noPoints,int cluster, std::string filename){
 void generateRead(){
 	Data dataBucket;
 	int extremes[2];
-	createDataFile(12,1, "2d-test-gen");
+	createDataFileTest(12,1, "2d-test-gen");
 	readIntsFromFile("./res/2d-test-gen",dataBucket,extremes);
 	plotmin=extremes[0];
 	plotmax=extremes[1];
@@ -177,7 +192,7 @@ int main() {
 	generateRead();
 	//readExample();
 	//exampleSearch();
-	//mediumExampleSearchBF();
+	mediumExampleSearchBF();
 	return 0;
 }
 
@@ -199,6 +214,7 @@ void exampleSearchBF(){
 	//p7.isCenter = true;
 	DataPoint ps[noDP] = {p1,p2,p3,p4,p5,p6,p7,p8};
 	bruteForceSearch(ps, noDP,  k,  cap);
+
 }
 
 void simpleExampleSearchBF(){
@@ -232,7 +248,14 @@ void mediumExampleSearchBF(){
 
 	bruteForceSearch(ps, noDP,  k,  cap);
 
-	localSearch(ps, noDP,  k,  cap);
+	int bestC[k];
+	int bestRegs[noDP];
+	localSearch(ps, noDP,  k,  cap, bestRegs, bestC);
+
+	updateCenterOfDPS(ps,noDP,bestC,k);
+
+	directPlotRegions(ps, noDP,bestC, k,bestRegs,"localSeach");
+
 
 }
 
@@ -252,7 +275,9 @@ void exampleSearch(){
 	//p6.isCenter = true;
 	//p7.isCenter = true;
 	DataPoint ps[noDP] = {p1,p2,p3,p4,p5,p6,p7,p8};
-	localSearch(ps, noDP,  k,  cap);
+	int bestC[k];
+	int bestRegs[noDP];
+	localSearch(ps, noDP,  k,  cap, bestRegs, bestC);
 }
 
 void exampleLoopWithPlot(){
@@ -392,12 +417,13 @@ void printDPs(DataPoint ps[], int noDP){
 // IN:
 // ps[] - Data, noDP - number of DataPoints, k - number of medians, cap - Capacity of median
 //
-double localSearch(DataPoint ps[], int noDP, int k, int cap){
+double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],int cPointsBest[], bool printEachImprovement){
 	//start with random centers
 	int cPoints[k];
 	int cPointsNew[k];
 	int regions[noDP];
-	int regionsNew[noDP];
+	//int regionsBest[noDP];
+	//int cPointsBest[k];
 
 	bool beVerbose = true;
 	srand (time(NULL));
@@ -496,8 +522,14 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap){
 						stringStream << "Iteration: "  << iterations <<" with cost:"<<currentCost;
 						std::string formatedStr = stringStream.str();
 						const char* cstr = formatedStr.c_str();
-						directPlotRegions(ps, noDP,cPoints, k,regions,cstr);
+						if(printEachImprovement)directPlotRegions(ps, noDP,cPoints, k,regions,cstr);
 
+						for(int p=0;p<k;p++){
+							cPointsBest[p]=cPoints[p];
+						}
+						for(int v=0;v<noDP;v++){
+							regionsBest[v]=regions[v];
+						}
 
 						break;
 						//goto stop;
@@ -1044,6 +1076,18 @@ void subset(int arr[], int size, int left, int index, list<int> &l, list<list<in
         l.pop_back();
     }
 
+}
+
+void updateCenterOfDPS(DataPoint ps[],int noDP,int center[],int k){
+	 for(int j=0;j<noDP;j++){
+		ps[j].isCenter = false;
+		ps[j].centerID = -1;
+	 }
+	 for(int j=0;j<k;j++){
+		int ind = center[j];
+		ps[ind].isCenter = true;
+		ps[ind].centerID = j;
+	 }
 }
 
 //end of helper functions *******************************
