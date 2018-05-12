@@ -141,15 +141,17 @@ int createDataFile(int noPoints,int cluster,double clusterDist,double inClusterD
 
 	double maxIn = cluster*1.1*clusterDist+2*inClusterDist;
 
-	for(int i=0;i<cluster;++i){
-    	out << "1," << i*clusterDist+ fRand(0,(clusterDist*0.1));
+	int pPerC = noPoints/cluster;
+
+	for(int i=0;i<cluster;i++){
+    	out << i*clusterDist+ fRand(0,(clusterDist*0.1))-(clusterDist*0.1)/2.0 << ",1.0";
     	out << endl;
 		//i*clusterDist+ frand(0,(clusterDist*0.1));
 	}
 
-    for(int i=0;i<noPoints;++i){
+    for(int i=0;i<(noPoints-cluster);i++){
     	//std::string input = string("1,");
-    	out << "1," << i;
+    	out << floor(i/pPerC)*clusterDist+ fRand(0,(inClusterDist*0.1))- (inClusterDist*0.1)/2 << ",1.0";
     	out << endl;
     }
 	out.close();
@@ -170,17 +172,20 @@ void generateReadTest(){
 }
 
 void generateRead(){
-	Data dataBucket;
-	int extremes[2];
+	DataDouble dataBucket;
+	double extremes[2];
 	//(int noPoints,int cluster,double clusterDist,double inClusterDist
-	createDataFile(12,2,4,1, "2d-test-gen");
-	readIntsFromFile("./res/2d-test-gen",dataBucket,extremes);
+	createDataFile(12,2,4,1, "2dd-test-gen");
+	readDoublesFromFile("./res/2dd-test-gen",dataBucket,extremes);
 	plotmin=extremes[0];
 	plotmax=extremes[1];
 	DataPoint readDPS [dataBucket.size()];
 	int noReadDPS = createDPSFromInput(dataBucket,readDPS);
 	printDPs(readDPS,noReadDPS);
 	directPlot(readDPS,noReadDPS);
+	int centers[2] ={1,2};
+	directPlotPoints(readDPS, noReadDPS, centers,2, "PlotWithConstructedCluster");
+
 }
 
 void readExample(){
@@ -215,8 +220,6 @@ void readExample(){
 void readDoubleExample(){
 	DataDouble dataBucket;
 	double extremes[2];
-	//readIntsFromFile("filereader-test",dataBucket);//char del optional;
-	//readIntsFromFile("./res/2DD-test",dataBucket,extremes);
 	readDoublesFromFile("./res/2DD-test",dataBucket,extremes);
 
 
@@ -267,6 +270,8 @@ int main() {
 	//readExample();
 	//exampleSearch();
 	mediumExampleSearchBF();
+
+	generateRead();
 	return 0;
 }
 
@@ -492,6 +497,8 @@ void printDPs(DataPoint ps[], int noDP){
 // ps[] - Data, noDP - number of DataPoints, k - number of medians, cap - Capacity of median
 //
 double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],int cPointsBest[], bool printEachImprovement){
+
+	bool beVerbose = false;
 	//start with random centers
 	int cPoints[k];
 	int cPointsNew[k];
@@ -499,26 +506,25 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 	//int regionsBest[noDP];
 	//int cPointsBest[k];
 
-	bool beVerbose = true;
 	srand (time(NULL));
 	//seed:1526051006
 	srand (1526051006);
 
-	cout << "srand seed:" << time(NULL) << endl;
+	if(beVerbose)cout << "srand seed:" << time(NULL) << endl;
 	for(int i=0;i<k;i++){
 		bool notFound = true;
 		while(notFound){
 			int randVal = rand();
-			cout <<"rnd:"<< randVal <<endl;
+			if(beVerbose)cout <<"rnd:"<< randVal <<endl;
 			int randInt = randVal % noDP;
-			cout <<"randInt:"<< randInt <<endl;
+			if(beVerbose)cout <<"randInt:"<< randInt <<endl;
 
 			if(!ps[randInt].isCenter){
 				ps[randInt].isCenter = true;
 				ps[randInt].centerID = i;
 				cPoints[i] = randInt;
 				cPointsNew[i] = randInt;
-				cout << "cPoints[i]: x " << ps[cPoints[i]].X << " y:"<< ps[cPoints[i]].Y << endl;
+				if(beVerbose)cout << "cPoints[i]: x " << ps[cPoints[i]].X << " y:"<< ps[cPoints[i]].Y << endl;
 				notFound = false;
 			}
 		}
@@ -534,7 +540,7 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 	double newCost;
 	double improvement = currentCost;
 	double minImprovment = 0.01;
-	printf("currentCost: %f",currentCost);
+	if(beVerbose)printf("currentCost: %f",currentCost);
 
 	std::ostringstream stringStream;
 	stringStream << "Start with cost:" << currentCost;
@@ -567,24 +573,24 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 					ps[cPointsNew[j]].isCenter = true;
 					ps[cPointsNew[j]].centerID = ps[cPoints[j]].centerID;
 					//ps[cPoints[j]].centerID = -1;
-					cout <<"---after try swap --\n";
+					if(beVerbose)cout <<"---after try swap --\n";
 					//cout << "ps[l] isCenter expected 1 :" << ps[l].isCenter << endl;
 					//cout << "ps[cPoints[j]].isCenter expected 0:" << ps[cPoints[j]].isCenter << endl;
 					//cout << "ps[cPoints[j].graphNodeIndex].isCenter expected 0:" << ps[ps[cPoints[j]].graphNodeIndex].isCenter << endl;
 					//cout <<"---end try--\n";
 
-					cout << "After switch" << endl;
-					cout << "In LS before iter calc" << endl;
+					if(beVerbose)cout << "After switch" << endl;
+					if(beVerbose)cout << "In LS before iter calc" << endl;
 					newCost = calcRegionsCS(ps, cPoints, noDP, k,cap,regions);
 					//cout << "In LS after iter calc" << endl;
 					//printDPs(ps, noDP);
 
 					cout << "newCost:" << newCost << endl;
-					cout << "currentCost:" << currentCost << endl;
+					if(beVerbose)cout << "currentCost:" << currentCost << endl;
 
 					if(newCost<currentCost){
 						if(beVerbose)cout <<"found better solution at j:" << j <<" l:" << l << endl;
-						cout << "switched: " << cPoints[j] << "with " << l << endl;
+						if(beVerbose)cout << "switched: " << cPoints[j] << "with " << l << endl;
 						ps[cPoints[j]].centerID = -1;
 						cPoints[j] = cPointsNew[j];
 
@@ -611,7 +617,7 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 						ps[cPoints[j]].isCenter = true;
 						ps[cPointsNew[j]].isCenter = false;
 						ps[cPointsNew[j]].centerID = -1;
-						cout <<"++++swap back+++\n";
+						if(beVerbose)cout <<"++++swap back+++\n";
 						//cout << "cPoints[j].isCenter exp 1:" << ps[cPoints[j]].isCenter << endl;
 						//cout << "cPointsNew[j].isCenter exp 0:" << ps[cPointsNew[j]].isCenter << endl;
 						//cout << "ps[cPoints[j].graphNodeIndex] isCenter exp 1:" << ps[ps[cPoints[j]].graphNodeIndex].isCenter << endl;
@@ -634,14 +640,14 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 			}
 		} //for j= current Center to switch
 		iterations++;
-		cout << "After iteration:" << iterations << endl;
+		if(beVerbose)cout << "After iteration:" << iterations << endl;
 		if(forBreak)forBreak = false;
 		else improvement = 0;
 
 	}
-	cout <<  "While Loop exited at iter:" << iterations <<endl;
-	stringStream << "MinCost found:" <<currentCost<<endl;
-	return 0;
+	if(beVerbose)cout <<  "While Loop exited at iter:" << iterations <<endl;
+	if(beVerbose)cout << "MinCost found:" <<currentCost<<endl;
+	return currentCost;
 }
 
 
@@ -651,7 +657,7 @@ double calcRegions(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, i
 
 
 	bool beVerbose = false;
-	bool lilVerbose = true;
+	bool lilVerbose = false;
 
 	if(beVerbose||lilVerbose)printf("*****calcBegin********\n");
 
@@ -873,7 +879,7 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 				if(beVerbose)cout << g.id(g.source(newArc)) << "->" << g.id(g.target(newArc))<< endl;
 				capacity[newArc] = 1;
 				double costLocal= ps[i].distanceTo(ps[cPoints[j]]);
-				cout<< "ArcCost:"<< costLocal<< endl;
+				if(beVerbose)cout<< "ArcCost:"<< costLocal<< endl;
 				cost[newArc] = costLocal;
 				arcCounter++;
 				//string tempS = "p->c";string("p: node") + i +"-> c: node "+ j +" cost:" + ps[i].distanceTo(cPoints[j]);
@@ -896,7 +902,7 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 	// Print total flow cost
 	if(beVerbose||lilVerbose)printf("Total flow cost: %f\n\n", ns.totalCost<double>());
 
-	std::cout << "Total cost: " << ns.totalCost<double>() << std::endl;
+	if(beVerbose)std::cout << "Total cost: " << ns.totalCost<double>() << std::endl;
 
 	// Print flow values on the arcs with ArcIterator
 	if(beVerbose)printf("Flow values on arcs:\n");
@@ -945,8 +951,8 @@ double bruteForceSearch(DataPoint ps[], int noDP, int k, int cap){
     std::list<int> lt;
     std::list<std::list<int>> all;
     subset(indArray,noDP,k,0,lt,all);
-    cout << "ALL--------------" << endl;
-    printList(all);
+    if(beVerbose)cout << "ALL--------------" << endl;
+    if(beVerbose)printList(all);
 
     double currentCost = DBL_MAX;
     double newCost;
@@ -1073,14 +1079,12 @@ void directPlotRegions(DataPoint* dps, int noDP,int centers[], int noCenters,int
 	int i;
 	for (i=0; i < noCenters; i++)
 	{
-		//printf("plotting center point: %lf %lf\n", centers[i].X, centers[i].Y);
 		fprintf(gnuplotPipe, "%lf %lf\n", dps[centers[i]].X, dps[centers[i]].Y);
 	}
 	fprintf(gnuplotPipe, "e\n");
 	int j;
 	for (j=0; j < noDP; j++)
 	{
-		//fprintf(gnuplotPipe, "plot '-' w p ls %d t \"DataPoints %d \" \n",regions[j]%9+1,regions[j]%9+1);
 		fprintf(gnuplotPipe, "plot '-' w p ls %d t \"DataPoints %d \" \n",dps[regions[j]].centerID%9+1,dps[regions[j]].centerID%9+1);
 		fprintf(gnuplotPipe, "%lf %lf\n", dps[j].X, dps[j].Y);
 		fprintf(gnuplotPipe, "e\n");
