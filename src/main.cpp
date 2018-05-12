@@ -183,10 +183,21 @@ void generateReadTest(){
 }
 
 void generateRead(){
+	Data inputBucket;
+	int doncare[2];
+	readIntsFromFile("./res/input-para",inputBucket,doncare);
+
+
 	DataDouble dataBucket;
 	double extremes[2];
 	//(int noPoints,int cluster,double clusterDist,double inClusterDist
-	createDataFile(15,2,30,8, "2dd-test-gen");
+	//createDataFile(10,2,30,8, "2dd-test-gen");
+
+	createDataFile(inputBucket[0][0],
+			inputBucket[0][1],
+			inputBucket[0][2],
+			inputBucket[0][3], "2dd-test-gen");
+
 	readDoublesFromFile("./res/2dd-test-gen",dataBucket,extremes);
 	plotmin=extremes[0];
 	plotmax=extremes[1];
@@ -218,8 +229,8 @@ void generateRead(){
 	updateCenterOfDPS(readDPS,noReadDPS,bestC,k);
 	std::ostringstream strs2;
 	strs2 << lsCost;
-	str = strs.str();
-	plotName = string("localSeach Cost:") + str;
+	std::string str2 = strs.str();
+	plotName = string("localSeach Cost:") + str2;
 	directPlotRegions(readDPS, noReadDPS,bestC, k,bestRegs,plotName.c_str());
 
 }
@@ -303,7 +314,7 @@ int main() {
 
 	//readDoubleExample();
 	//readExample();
-	exampleSearch();
+	//exampleSearch();
 	//mediumExampleSearchBF();
 	generateRead();
 	return 0;
@@ -918,8 +929,8 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 				if(beVerbose)cout << g.id(g.source(newArc)) << "->" << g.id(g.target(newArc))<< endl;
 				capacity[newArc] = 1;
 				double costLocal= ps[i].distanceTo(ps[cPoints[j]]);
-				if(beVerbose)ps[i].print();
-				if(beVerbose)ps[cPoints[j]].print();
+				//if(beVerbose)ps[i].print();
+				//if(beVerbose)ps[cPoints[j]].print();
 				if(beVerbose)cout<< "ArcCost:"<< costLocal<< endl;
 				cost[newArc] = costLocal;
 				arcCounter++;
