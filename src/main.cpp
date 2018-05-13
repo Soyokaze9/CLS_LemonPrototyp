@@ -95,6 +95,8 @@ void printVector( std::vector< std::vector<int> > v);
 void printDPs(DataPoint ps[], int noDP);
 void subset(int arr[], int size, int left, int index, std::list<int> &l, std::list<std::list<int>> &all);
 void updateCenterOfDPS(DataPoint ps[],int noDP,int center[],int k);
+void updateDPS(DataPoint ps[],int noDP,int center[],int k, int regions[]);
+double calculateCost(DataPoint ps[],int noDP,int center[]);
 
 using namespace lemon;
 using namespace std;
@@ -217,10 +219,12 @@ void generateRead(){
 
 	double bCost = bruteForceSearch(readDPS, noReadDPS,  k,  cap,bestRegs, bestC);
 
+	updateDPS(readDPS,noReadDPS,bestC,k,bestRegs);
 	cout <<"---- after bfSeach:\n";
 	printDPs(readDPS,noReadDPS);
+	double bcalcCost = calculateCost(readDPS,noReadDPS,bestC);
 
-	updateCenterOfDPS(readDPS,noReadDPS,bestC,k);
+	cout << "bCost:" << bCost << " bcalcCost:" << bcalcCost<<  endl;
 
 	std::ostringstream strs;
 	strs << bCost;
@@ -228,16 +232,26 @@ void generateRead(){
 	string plotName = string("bruteForceSeach Cost:") + str;
 	directPlotRegions(readDPS, noReadDPS,bestC, k,bestRegs,plotName.c_str());
 
+	cout << "Press any key to continue" << endl;
+	std::cin.get();
 
 	int bestC2[k];
 	int bestRegs2[noReadDPS];
 
 	double lsCost = localSearch(readDPS, noReadDPS,  k,  cap, bestRegs2, bestC2);
 
+	updateDPS(readDPS,noReadDPS,bestC2,k,bestRegs2);
 	cout <<"---- after localSeach:\n";
-	printDPs(readDPS,noReadDPS);
+	//printDPs(readDPS,noReadDPS);
 
-	updateCenterOfDPS(readDPS,noReadDPS,bestC2,k);
+	for(int z=0;z<k;z++){
+		cout << "ls center:"<< bestC2[z]<< endl;
+	}
+
+	double lcalcCost = calculateCost(readDPS,noReadDPS,bestC2);
+
+	cout << "lsCost:" << lsCost << " lcalcCost:" << lcalcCost<<  endl;
+
 	std::ostringstream strs2;
 	strs2 << lsCost;
 	std::string str2 = strs.str();
@@ -402,7 +416,7 @@ void mediumExampleSearchBF(){
 void exampleSearch(){
 	int noDP = 8;
 	int k = 3;
-	int cap = 2;
+	int cap = 3;
 	DataPoint p1(1,2);
 	DataPoint p2(1,5);
 	DataPoint p3(2,1);
@@ -637,8 +651,9 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 				if(!ps[l].isCenter){
 					cPointsNew[j] = l;
 					ps[cPoints[j]].isCenter = false;
-					ps[cPointsNew[j]].isCenter = true;
-					ps[cPointsNew[j]].centerID = ps[cPoints[j]].centerID;
+					ps[cPoints[j]].centerID = -1;
+					ps[l].isCenter = true;
+					ps[j].centerID = ps[cPoints[j]].centerID;
 					//ps[cPoints[j]].centerID = -1;
 					if(beVerbose)cout <<"---after try swap --\n";
 					//cout << "ps[l] isCenter expected 1 :" << ps[l].isCenter << endl;
@@ -658,12 +673,10 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 					if(newCost<currentCost){
 						if(beVerbose)cout <<"found better solution at j:" << j <<" l:" << l << endl;
 						if(beVerbose)cout << "switched: " << cPoints[j] << "with " << l << endl;
-						ps[cPoints[j]].centerID = -1;
-						cPoints[j] = cPointsNew[j];
 
+						cPoints[j] = cPointsNew[j];
 						improvement = currentCost-newCost;
 						currentCost=newCost;
-						forBreak = true;
 
 						std::ostringstream stringStream;
 						stringStream << "Iteration: "  << iterations <<" with cost:"<<currentCost;
@@ -680,7 +693,7 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 							}
 
 						}
-
+						forBreak = true;
 						break;
 						//goto stop;
 					}else{
@@ -694,14 +707,10 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 						//cout << "ps[l] isCenter expected 0 :" << ps[l].isCenter << endl;
 						//cout <<"++++end back+++\n";
 						cPointsNew[j] = cPoints[j];
-
 						//cout << "After back switch" << endl;
 						//printDPs(ps, noDP);
-
 					}
-
 				}
-
 			} // for l = current point to swap in for Center j
 			if(forBreak){
 				if(beVerbose)cout <<"break out of j"<< endl;
@@ -868,6 +877,7 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 
 	bool beVerbose = false;
 	bool lilVerbose = false;
+	bool beVerboseAboutFlow = false;
 	bool graphVerbose = true;
 	if(beVerbose||lilVerbose)printf("*****calcBegin********\n");
 	//create graph
@@ -891,7 +901,6 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 	}
 
 	// add s and t
-
 	nodesGraph[noDP] = g.addNode();
 	nodesGraph[noDP+1] = g.addNode();
 	int indexS = noDP;
@@ -899,7 +908,6 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 
 	//make note of centers for later
 	int cPoints[k];
-
 	int counter = 0;
 	for(int i=0;i<noDP;i++){
 		if (ps[i].isCenter){
@@ -915,11 +923,8 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 		return 0;
 	}
 
-
 	//cout << "In Calc after Nodes init" << endl;
 	//printDPs(ps, noDP);
-
-
 	int demand = (noDP);
 	if(beVerbose)cout << "demand:" << demand << endl;
 	supply[nodesGraph[indexS]] = (demand);
@@ -990,12 +995,15 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 		if(ns.flow(a)>0){
 			if(g.id(g.source(a))<noDP){
 				//indexT+1+i == centerIndex => centerID = node_CenterIndex-indexT-1
-				if(beVerbose)cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
 				int regionID = g.id(g.target(a))-indexT-1;
-
-				if(beVerbose)printf("CS Region Map %d->%d\n",g.id(g.source(a))+1 ,regionID);
-				if(beVerbose)cout << "g.id(g.source(a)):" << g.id(g.source(a)) << endl;
 				regions[g.id(g.source(a))] = regionID;
+
+				if(beVerboseAboutFlow){
+					cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
+					//if(beVerbose)
+					printf("CS Region Map %d->%d\n",g.id(g.source(a))+1 ,regionID);
+					cout << "g.id(g.source(a)):" << g.id(g.source(a)) << endl;
+				}
 
 				/*
 				if(g.id(g.target(a))<noDP){
@@ -1263,6 +1271,7 @@ void updateCenterOfDPS(DataPoint ps[],int noDP,int center[],int k){
 	 for(int j=0;j<noDP;j++){
 		ps[j].isCenter = false;
 		ps[j].centerID = -1;
+
 	 }
 	 for(int j=0;j<k;j++){
 		int ind = center[j];
@@ -1270,6 +1279,30 @@ void updateCenterOfDPS(DataPoint ps[],int noDP,int center[],int k){
 		ps[ind].isCenter = true;
 		ps[ind].centerID = j;
 	 }
+}
+
+void updateDPS(DataPoint ps[],int noDP,int center[],int k, int regions[]){
+	 for(int j=0;j<noDP;j++){
+		ps[j].isCenter = false;
+		ps[j].centerID = -1;
+		ps[j].indexOfmappedCenter = regions[j];
+
+	 }
+	 for(int j=0;j<k;j++){
+		int ind = center[j];
+		cout << "center Index:" <<ind << endl;
+		ps[ind].isCenter = true;
+		ps[ind].centerID = j;
+	 }
+}
+
+double calculateCost(DataPoint ps[],int noDP,int center[]){
+	double sum = 0;
+	for(int j=0;j<noDP;j++){
+		DataPoint c = ps[center[ps[j].indexOfmappedCenter]];
+		sum = sum + ps[j].distanceTo(c);
+	 }
+	return sum;
 }
 
 //end of helper functions *******************************
