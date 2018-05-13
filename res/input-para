@@ -1,0 +1,4 @@
+#(int noPoints,int cluster,double clusterDist,double inClusterDist, capa #cluster*capa > noPoints
+#worked 10,	2,	30,	8
+#worked 20,	2, 30,	8, 12
+25, 2, 30, 10, 13
