@@ -94,7 +94,6 @@ void printList( std::list<std::list<int>> l);
 void printVector( std::vector< std::vector<int> > v);
 void printDPs(DataPoint ps[], int noDP);
 void subset(int arr[], int size, int left, int index, std::list<int> &l, std::list<std::list<int>> &all);
-void updateCenterOfDPS(DataPoint ps[],int noDP,int center[],int k);
 void updateDPS(DataPoint ps[],int noDP,int center[],int k, int regions[]);
 double calculateCost(DataPoint ps[],int noDP,int center[]);
 
@@ -224,6 +223,13 @@ void generateRead(){
 	printDPs(readDPS,noReadDPS);
 	double bcalcCost = calculateCost(readDPS,noReadDPS,bestC);
 
+	for(int z=0;z<k;z++){
+		cout << "bf center:"<< bestC[z]<< endl;
+	}
+	for(int z=0;z<noReadDPS;z++){
+		cout << "bf regions:"<< bestRegs[z]<< endl;
+	}
+
 	cout << "bCost:" << bCost << " bcalcCost:" << bcalcCost<<  endl;
 
 	std::ostringstream strs;
@@ -246,6 +252,9 @@ void generateRead(){
 
 	for(int z=0;z<k;z++){
 		cout << "ls center:"<< bestC2[z]<< endl;
+	}
+	for(int z=0;z<noReadDPS;z++){
+		cout << "ls regions:"<< bestRegs2[z]<< endl;
 	}
 
 	double lcalcCost = calculateCost(readDPS,noReadDPS,bestC2);
@@ -400,13 +409,13 @@ void mediumExampleSearchBF(){
 
 	bruteForceSearch(ps, noDP,  k,  cap,bestRegs, bestC);
 
-	updateCenterOfDPS(ps,noDP,bestC,k);
+	updateDPS(ps,noDP,bestC,k,bestRegs);
 
 	directPlotRegions(ps, noDP,bestC, k,bestRegs,"bruteForceSeach");
 
 	localSearch(ps, noDP,  k,  cap, bestRegs, bestC);
 
-	updateCenterOfDPS(ps,noDP,bestC,k);
+	updateDPS(ps,noDP,bestC,k,bestRegs);
 
 	directPlotRegions(ps, noDP,bestC, k,bestRegs,"localSeach");
 
@@ -571,9 +580,9 @@ void printDPs(DataPoint ps[], int noDP){
 // IN:
 // ps[] - Data, noDP - number of DataPoints, k - number of medians, cap - Capacity of median
 //
-double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],int cPointsBest[], bool printEachImprovement){
+double localSearch(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,int* cPointsBest, bool printEachImprovement){
 
-	bool beVerbose = true;
+	bool beVerbose = false;
 	//start with random centers
 	int cPoints[k];
 	int cPointsNew[k];
@@ -653,7 +662,7 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 					ps[cPoints[j]].isCenter = false;
 					ps[cPoints[j]].centerID = -1;
 					ps[l].isCenter = true;
-					ps[j].centerID = ps[cPoints[j]].centerID;
+					ps[l].centerID = ps[cPoints[j]].centerID;
 					//ps[cPoints[j]].centerID = -1;
 					if(beVerbose)cout <<"---after try swap --\n";
 					//cout << "ps[l] isCenter expected 1 :" << ps[l].isCenter << endl;
@@ -663,7 +672,7 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 
 					if(beVerbose)cout << "After switch" << endl;
 					if(beVerbose)cout << "In LS before iter calc" << endl;
-					newCost = calcRegionsCS(ps, cPoints, noDP, k,cap,regions);
+					newCost = calcRegionsCS(ps, cPointsNew, noDP, k,cap,regions);
 					//cout << "In LS after iter calc" << endl;
 					//printDPs(ps, noDP);
 
@@ -691,13 +700,13 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 							for(int v=0;v<noDP;v++){
 								regionsBest[v]=regions[v];
 							}
-
 						}
 						forBreak = true;
 						break;
 						//goto stop;
 					}else{
 						ps[cPoints[j]].isCenter = true;
+						ps[cPoints[j]].centerID = ps[cPointsNew[j]].centerID;
 						ps[cPointsNew[j]].isCenter = false;
 						ps[cPointsNew[j]].centerID = -1;
 						if(beVerbose)cout <<"++++swap back+++\n";
@@ -724,6 +733,11 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int regionsBest[],in
 		else improvement = 0;
 
 	}
+
+	for(int z=0;z<k;z++){
+		cout << "in ls  center:"<< cPointsBest[z]<< endl;
+	}
+
 	if(beVerbose)cout <<  "While Loop exited at iter:" << iterations <<endl;
 	if(beVerbose)cout << "MinCost found:" <<currentCost<<endl;
 	return currentCost;
@@ -878,7 +892,7 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 	bool beVerbose = false;
 	bool lilVerbose = false;
 	bool beVerboseAboutFlow = false;
-	bool graphVerbose = true;
+	bool graphVerbose = false;
 	if(beVerbose||lilVerbose)printf("*****calcBegin********\n");
 	//create graph
 	DIGRAPH_TYPEDEFS(SmartDigraph);
@@ -909,6 +923,7 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 	//make note of centers for later
 	int cPoints[k];
 	int counter = 0;
+	/*
 	for(int i=0;i<noDP;i++){
 		if (ps[i].isCenter){
 			cPoints[counter]=i;
@@ -916,12 +931,18 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 			nodesGraph[indexT+1+i]=centerNodes[counter];
 			counter++;
 		}
+	}*/
+	for(int i=0;i<k;i++) {
+		cPoints[i] = cPointsInds[i];
+		centerNodes[i]=g.addNode();
+		nodesGraph[indexT+1+i]=centerNodes[i];
 	}
 
+	/*
 	if(counter<k){
 		cout << "NOT ENOUGH CENTERS" << endl;
 		return 0;
-	}
+	}*/
 
 	//cout << "In Calc after Nodes init" << endl;
 	//printDPs(ps, noDP);
@@ -994,7 +1015,8 @@ double calcRegionsCS(DataPoint ps[],int cPointsInds[], int noDP, int k, int cap,
 		//if it is not s or t
 		if(ns.flow(a)>0){
 			if(g.id(g.source(a))<noDP){
-				//indexT+1+i == centerIndex => centerID = node_CenterIndex-indexT-1
+				//WRONG!!indexT+1+i == centerIndex => centerID = node_CenterIndex-indexT-1
+
 				int regionID = g.id(g.target(a))-indexT-1;
 				regions[g.id(g.source(a))] = regionID;
 
@@ -1267,19 +1289,6 @@ void subset(int arr[], int size, int left, int index, list<int> &l, list<list<in
 
 }
 
-void updateCenterOfDPS(DataPoint ps[],int noDP,int center[],int k){
-	 for(int j=0;j<noDP;j++){
-		ps[j].isCenter = false;
-		ps[j].centerID = -1;
-
-	 }
-	 for(int j=0;j<k;j++){
-		int ind = center[j];
-		cout << "center Index:" <<ind << endl;
-		ps[ind].isCenter = true;
-		ps[ind].centerID = j;
-	 }
-}
 
 void updateDPS(DataPoint ps[],int noDP,int center[],int k, int regions[]){
 	 for(int j=0;j<noDP;j++){
@@ -1298,10 +1307,18 @@ void updateDPS(DataPoint ps[],int noDP,int center[],int k, int regions[]){
 
 double calculateCost(DataPoint ps[],int noDP,int center[]){
 	double sum = 0;
+	//cout << "calcCost" << endl;
 	for(int j=0;j<noDP;j++){
 		DataPoint c = ps[center[ps[j].indexOfmappedCenter]];
+		/*
+		cout << "c is:" << endl;
+		c.print();
+		cout << "p is:" << endl;
+		ps[j].print();
+		*/
 		sum = sum + ps[j].distanceTo(c);
 	 }
+	cout << "calcCost--------------end" << endl;
 	return sum;
 }
 
