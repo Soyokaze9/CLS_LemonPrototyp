@@ -252,7 +252,7 @@ void generateRead(){
 	int bestC2[k];
 	int bestRegs2[noReadDPS];
 
-	double lsCost = localSearch(readDPS, noReadDPS,  k,  cap, bestRegs2, bestC2);
+	double lsCost = localSearch(readDPS, noReadDPS,  k,  cap, bestRegs2, bestC2,false,noReadDPS<drawMax);
 
 	updateDPS(readDPS,noReadDPS,bestC2,k,bestRegs2);
 	cout <<"---- after localSeach:\n";
