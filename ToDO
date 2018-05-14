@@ -1,0 +1,22 @@
+- make dataGenerator for Data > 1D
+- implement lower boundary
+- improve GraphCreation 
+- remove iterations boundary
+- make modular, oo-conforming: 
+	- make centerID and isCenter set through singular setter
+- maybe better use Unit Tests?
+- visualization/presentation of calculated clusters of general data
+
+- ensure performance
+	- check memory address of int[]s regions
+	- write new visualization (using blocks)
+	- reuse graph when swapping
+	- reuse part of flow calcs?
+	
+- ensure correctness:
+	- check calcCostCS againts bruteforce for sizeable examples
+			
+- later reinterpret clustered data
+
+
+

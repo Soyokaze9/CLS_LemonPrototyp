@@ -1,4 +1,11 @@
-#(int noPoints,int cluster,double clusterDist,double inClusterDist, capa #cluster*capa > noPoints
+#(int noPoints,int noOfCluster,dbl betweenClustDist,double inClusterDist, capacity #cluster*capa > noPoints
 #worked 10,	2,	30,	8
 #worked 20,	2, 30,	8, 12
-25, 2, 30, 10, 13
+#worked 25, 2, 30, 10, 13
+#worked 40, 2, 30, 10, 25 until here with BFsearch for comparison
+#worked
+#worked 42, 3 , 30, 10, 30 BF takes 1-2 min
+#worked 120, 3, 40, 10, 45 runtime < 1 min
+#worked 300, 10, 50, 15, 40 runtime < 1 min (drawing takes a few sec)
+# 1000, 50, 40, 10, 25  > 15 min
+ 400, 10, 30, 5, 60 
