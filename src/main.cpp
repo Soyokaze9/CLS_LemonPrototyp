@@ -1057,10 +1057,13 @@ double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,
 					cout <<"newCost:"<< newCost << endl;
 					cout <<"newCostOld:"<< newCostOld << endl;
 
-					if(newCostOld==newCost) printf("BINGO!\n");
+					if(newCostOld==newCost){
+						printf("BINGO!\n");
+					}else{
+						cout << "ARG Different Costs!!! Press any key to continue" << endl;
+											std::cin.get();
 
-					cout << "Press any key to continue" << endl;
-					std::cin.get();
+					} ;
 
 
 					//cout << "In LS after iter calc" << endl;
