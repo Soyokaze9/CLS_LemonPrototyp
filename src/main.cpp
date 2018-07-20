@@ -3,7 +3,16 @@
 #include <cstdio>
 #include <fstream>
 
+//#include <stdlib>
+//#include <stdio>
+
+#include <sys/times.h>
+#include <sys/vtimes.h>
+
 #include <string>
+#include <cstring>
+
+#include <stdio.h>
 #include <list>
 #include <float.h>
 
@@ -11,6 +20,7 @@
 #include <lemon/smart_graph.h>
 #include <lemon/list_graph.h>
 #include <lemon/capacity_scaling.h>
+#include <lemon/cost_scaling.h>
 #include <lemon/network_simplex.h>
 #include <lemon/preflow.h>
 #include <lemon/lgf_reader.h>
@@ -46,25 +56,52 @@ double calcRegionsCSRG(const SmartDigraph& g,
 		DoubleArcMap& cost,
 		IntNodeMap& supply,
 		IntArcMap& name,
-		Node* nodesGraph,
-		Node* centerNodes,
-		int indexT,
-		DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int* regions);
-
-double calcRegionsCSRGTest( SmartDigraph& g,
-		IntArcMap& capacity,
-		DoubleArcMap& cost,
-		IntNodeMap& supply,
-		IntArcMap& name,
-		Node* nodesGraph,
-		Node* centerNodes,
+		const Node* nodesGraph,
+		const Node* centerNodes,
 		int indexT,
 		int kToBeOutSwitched,
 		int iToBeInSwitched,
 		DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int* regions);
-double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,int* cPointsBest, bool printEachImprovement, bool drawStart);
 
 
+
+double calcRegionsCSRGTest(const SmartDigraph& g,
+		IntArcMap& capacity,
+		DoubleArcMap& cost,
+		IntNodeMap& supply,
+		IntArcMap& name,
+		const Node* nodesGraph,
+		const Node* centerNodes,
+		int indexT,
+		int kToBeOutSwitched,
+		int iToBeInSwitched,
+		DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int* regions);
+
+double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,int* cPointsBest, bool printEachImprovement, bool drawStart,int algType);
+
+double calcRegionsNS2(const SmartDigraph& g,
+		IntArcMap& capacity,
+		DoubleArcMap& cost,
+		IntNodeMap& supply,
+		IntArcMap& name,
+		const Node* nodesGraph,
+		const Node* centerNodes,
+		int indexT,
+		int kToBeOutSwitched,
+		int iToBeInSwitched,
+		DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int* regions);
+
+double calcRegionsCostOp(const SmartDigraph& g,
+		IntArcMap& capacity,
+		DoubleArcMap& cost,
+		IntNodeMap& supply,
+		IntArcMap& name,
+		const Node* nodesGraph,
+		const Node* centerNodes,
+		int indexT,
+		int kToBeOutSwitched,
+		int iToBeInSwitched,
+		DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int* regions);
 
 std::string vertNoToString(int vertexNo,int maxNo);
 void printList( std::list<int> l);
@@ -83,6 +120,101 @@ DIGRAPH_TYPEDEFS(SmartDigraph);
 
 int plotmin = 0;
 int plotmax = 10;
+
+
+/*
+static unsigned long long lastTotalUser, lastTotalUserLow, lastTotalSys, lastTotalIdle;
+
+void init(){
+	FILE* file = fopen("/proc/stat", "r");
+	fscanf(file, "cpu %llu %llu %llu %llu",&lastTotalUser,&lastTotalUserLow,&lastTotalSys,&lastTotalIdle);
+	fclose(file);
+}*/
+
+static clock_t lastCPU,lastSysCPU, lastUserCPU;
+static int numProcessor;
+
+void init(){
+	FILE * file;
+	struct tms timeSample;
+	char line[128];
+	lastCPU = times(&timeSample);
+	lastSysCPU = timeSample.tms_stime;
+	lastUserCPU = timeSample.tms_utime;
+	file = fopen("/proc/cpuinfo","r");
+	numProcessor = 0;
+	while(fgets(line,128, file)!= NULL){
+		if(strncmp(line,"processor",9)==0)numProcessor++;
+	}
+fclose(file);
+}
+
+double getCurrentValue(){
+	struct tms timeSample;
+	clock_t now;
+	double percent;
+
+	now = times(&timeSample);
+	if(now<= lastCPU || timeSample.tms_stime < lastSysCPU||
+			timeSample.tms_utime<lastUserCPU){
+		//overflow detection
+		percent = -1.0;
+
+	}else{
+		percent = (timeSample.tms_stime - lastSysCPU) + (timeSample.tms_utime-lastUserCPU);
+		percent /= (now-lastCPU);
+		percent /= numProcessor;
+		percent *=100;
+	}
+	lastCPU = now;
+	lastSysCPU = timeSample.tms_stime;
+	lastUserCPU = timeSample.tms_utime;
+
+	return percent;
+}
+
+double getCurrentCPUDiff(){
+	struct tms timeSample;
+	clock_t now;
+	double percent;
+
+	now = times(&timeSample);
+	if(now<= lastCPU || timeSample.tms_stime < lastSysCPU||
+			timeSample.tms_utime<lastUserCPU){
+		//overflow detection
+		percent = -1.0;
+
+	}else{
+		percent = (timeSample.tms_stime - lastSysCPU) + (timeSample.tms_utime-lastUserCPU);
+	}
+	lastCPU = now;
+	lastSysCPU = timeSample.tms_stime;
+	lastUserCPU = timeSample.tms_utime;
+
+	return percent;
+}
+/*
+double getCurrentCPUDiff(){
+	struct tms timeSample;
+	clock_t now;
+	double percent;
+
+	now = times(&timeSample);
+	if(now<= lastCPU || timeSample.tms_stime < lastSysCPU||
+			timeSample.tms_utime<lastUserCPU){
+		//overflow detection
+		percent = -1.0;
+
+	}else{
+		percent = (timeSample.tms_stime - lastSysCPU) + (timeSample.tms_utime-lastUserCPU);
+	}
+	lastCPU = now;
+	lastSysCPU = timeSample.tms_stime;
+	lastUserCPU = timeSample.tms_utime;
+
+	return percent;
+}
+*/
 
 int createDPSFromInput(Data dataBucket,DataPoint dps[]){
 	for(std::size_t i=0; i < dataBucket.size(); ++i){
@@ -168,9 +300,13 @@ void generateReadTest(){
 void generateRead(){
 	Data inputBucket;
 	int doncare[2];
-	readIntsFromFile("./res/input-para",inputBucket,doncare);
 
-	int bruteforceMax = 41;
+	///home/soyo/Development/BA/SecondLemonWorkspace/LKM_V3/res/input-para
+	//readIntsFromFile("./res/input-para",inputBucket,doncare);
+	readIntsFromFile("/home/soyo/Development/BA/SecondLemonWorkspace/LKM_V3/res/input-para",inputBucket,doncare);
+
+
+	int bruteforceMax = 30;
 	int drawMax = 500;
 
 	DataDouble dataBucket;
@@ -191,16 +327,19 @@ void generateRead(){
 	//printDPs(readDPS,noReadDPS);
 	//directPlot(readDPS,noReadDPS);
 	int centers[2] ={1,2};
-	if(noReadDPS<drawMax)directPlotPoints(readDPS, noReadDPS, centers,2, "PlotWithConstructedCluster");
+	//if(noReadDPS<drawMax)directPlotPoints(readDPS, noReadDPS, centers,2, "PlotWithConstructedCluster");
 
 	int k = inputBucket[0][1];
 	int cap = inputBucket[0][4];
+
+	int algType = inputBucket[0][5];
 
 	int bestC[k];
 	int bestRegs[noReadDPS];
 
 	string plotName = string("not set");
 	std::ostringstream strs;
+
 
 	if(noReadDPS<bruteforceMax){
 		double bCost = bruteForceSearch(readDPS, noReadDPS,  k,  cap,bestRegs, bestC);
@@ -225,35 +364,72 @@ void generateRead(){
 		string plotName = string("bruteForceSeach Cost:") + str;
 		directPlotRegions(readDPS, noReadDPS,bestC, k,bestRegs,plotName.c_str());
 
-		cout << "Press any key to continue" << endl;
-		std::cin.get();
+//		cout << "Press any key to continue" << endl;
+//		std::cin.get();
 	}
 
+	cout << "Press any key to continue" << endl;
+		std::cin.get();
 
 	int bestC2[k];
 	int bestRegs2[noReadDPS];
 
-	double lsCost = localSearch(readDPS, noReadDPS,  k,  cap, bestRegs2, bestC2,false,noReadDPS<drawMax);
+
+
+	struct tms timeSample;
+	clock_t now;
+	double startProcTime;
+	double endProcTime;
+	//now = times(&timeSample);
+	//startProcTime = timeSample.tms_stime+timeSample.tms_utime;
+
+	//double lsCost =0;
+
+	double lsCost = localSearchOpt(readDPS, noReadDPS,  k,  cap, bestRegs2, bestC2,false,false,algType);//noReadDPS<drawMax);
+	//now = times(&timeSample);
+
+	//endProcTime = timeSample.tms_stime+timeSample.tms_utime;
+
+	//cout << "ProcessTime:" << (endProcTime-startProcTime) << "Press any key to continue" << endl;
+	//std::cin.get();
+
+	/*
+	now = times(&timeSample);
+	startProcTime = timeSample.tms_stime+timeSample.tms_utime;
+	double lsCostOLD = localSearch(readDPS, noReadDPS,  k,  cap, bestRegs2, bestC2,false,noReadDPS<drawMax);
+
+	now = times(&timeSample);
+	endProcTime = timeSample.tms_stime+timeSample.tms_utime;
+
+	cout << "ProcessTimeOld:" << (endProcTime-startProcTime) << "Press any key to continue" << endl;
+	std::cin.get();
+	 */
 
 	updateDPS(readDPS,noReadDPS,bestC2,k,bestRegs2);
 	cout <<"---- after localSeach:\n";
 	//printDPs(readDPS,noReadDPS);
 
+
+	/*
 	for(int z=0;z<k;z++){
 		cout << "ls center:"<< bestC2[z]<< endl;
 	}
+	if(noReadDPS<600)
 	for(int z=0;z<noReadDPS;z++){
 		cout << "ls regions:"<< bestRegs2[z]<< endl;
 	}
+	 */
 
-	double lcalcCost = calculateCost(readDPS,noReadDPS,bestC2);
+	//double lcalcCost = calculateCost(readDPS,noReadDPS,bestC2);
 
-	cout << "lsCost:" << lsCost << " lcalcCost:" << lcalcCost<<  endl;
+	cout << "lsCost:" << lsCost <<  endl;
 
 	std::ostringstream strs2;
 	strs2 << lsCost;
 	std::string str2 = strs2.str();
 	plotName = string("localSeach Cost:") + str2;
+	cout << "plotName:"<<plotName<<endl;
+	//cout << "oldLSCost:" <<lsCostOLD << endl;
 	if(noReadDPS<drawMax)directPlotRegions(readDPS, noReadDPS,bestC2, k,bestRegs2,plotName.c_str());
 
 }
@@ -339,8 +515,8 @@ int main() {
 
 	//last good
 	//exampleSearch();
-	//generateRead();
-	example2();
+	generateRead();
+	//example2();
 	return 0;
 }
 
@@ -573,13 +749,15 @@ int example2(){
 	int bestRegs[noDP];
 	//localSearchOpt(ps, noDP,  k,  cap, bestRegs, bestC,false,true);
 
+
+
 	bruteForceSearch(ps, noDP,  k,  cap,bestRegs, bestC);
 
 	updateDPS(ps,noDP,bestC,k,bestRegs);
 
 	directPlotRegions(ps, noDP,bestC, k,bestRegs,"bruteForceSeach");
 
-	localSearchOpt(ps, noDP,  k,  cap, bestRegs, bestC,false,true);
+	localSearchOpt(ps, noDP,  k,  cap, bestRegs, bestC,false,true,1);
 	//localSearch(ps, noDP,  k,  cap, bestRegs, bestC);
 
 	updateDPS(ps,noDP,bestC,k,bestRegs);
@@ -734,7 +912,11 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,int
 
 					if(beVerbose)cout << "After switch" << endl;
 					if(beVerbose)cout << "In LS before iter calc" << endl;
+
+					//cout << "calc start with tree creation here:"<< getCurrentCPUDiff() << endl;
 					newCost = calcRegionsCS(ps, cPointsNew, noDP, k,cap,regions);
+					//cout << "calc end with tree creation here:"<< getCurrentCPUDiff() << endl;
+
 					//cout << "In LS after iter calc" << endl;
 					//printDPs(ps, noDP);
 
@@ -805,9 +987,9 @@ double localSearch(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,int
 	return currentCost;
 }
 
-double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,int* cPointsBest, bool printEachImprovement, bool drawStart){
+double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,int* cPointsBest, bool printEachImprovement, bool drawStart,int algType){
 
-	bool beVerbose = false;
+	bool beVerbose = true;
 	//start with random centers
 	int cPoints[k];
 	int cPointsNew[k];
@@ -932,6 +1114,9 @@ double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,
 	if(beVerbose)printf("Input graph created with %d nodes and %d arcs\n\n",
 			countNodes(g), countArcs(g));
 
+	printf("Input graph created with %d nodes and %d arcs\n\n",
+				countNodes(g), countArcs(g));
+
 	//// graph created
 
 	//double currentCost = calcRegionsCSRG(g,ps, cPoints, noDP, k,cap,regions);
@@ -962,7 +1147,36 @@ double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,
 						capacity[a] ,cost[a]);
 	}
 */
-	double currentCost  =	calcRegionsCSRGTest( g,
+	//calcRegionsCSRGTest( g,
+	double (*calcFunc)(const SmartDigraph&,
+			IntArcMap&,
+			DoubleArcMap&,
+			IntNodeMap&,
+			IntArcMap&,
+			const Node*,
+			const Node*,
+			int,
+			int,
+			int,
+			DataPoint[],int[], int, int, int , int*);
+
+	switch (algType) {
+		case 1:
+			calcFunc = calcRegionsNS2;
+			break;
+		case 2:
+			calcFunc = calcRegionsCSRGTest;
+			break;
+		case 3:
+			calcFunc = calcRegionsCSRG;
+			break;
+		default:
+		case 4:
+			calcFunc = calcRegionsCostOp;
+			break;
+	}
+
+	double currentCost  =	calcRegionsNS2(g,
 			capacity,
 			cost,
 			supply,
@@ -1013,6 +1227,7 @@ double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,
 
 	bool forBreak = false;
 	int iterations = 0;
+	int changeCounter = 0;
 	while(iterations < 5 && (improvement>minImprovment)){
 		if(beVerbose)cout <<" " << endl;
 		if(beVerbose)cout <<"iteration:  "<<iterations << endl;
@@ -1038,9 +1253,17 @@ double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,
 
 					if(beVerbose)cout << "After switch" << endl;
 					if(beVerbose)cout << "In LS before iter calc" << endl;
-					double newCostOld = calcRegionsCS(ps, cPointsNew, noDP, k,cap,regions);
+					//double newCostOld = calcRegionsCS(ps, cPointsNew, noDP, k,cap,regions);
 
-					newCost  =	calcRegionsCSRGTest( g,
+					changeCounter++;
+
+					bool verboseTime = false;
+					if(verboseTime)cout << "changeCounter: " << changeCounter << endl;
+
+					if(verboseTime)cout << "calcReg start until here:"<< getCurrentCPUDiff() << endl;
+
+					//calcRegionsCSRGTest( g,
+					newCost  =	calcRegionsNS2( g,
 							capacity,
 							cost,
 							supply,
@@ -1052,9 +1275,13 @@ double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,
 							0,//int iToBeInSwitched,
 							ps,cPointsNew,noDP,k, cap, regions);
 
-					cout <<"newCost:"<< newCost << endl;
-					cout <<"newCostOld:"<< newCostOld << endl;
+					if(verboseTime)cout << "calcReg end here:"<< getCurrentCPUDiff() << endl;
 
+
+					if(verboseTime)cout <<"newCost:"<< newCost << endl;
+					//cout <<"newCostOld:"<< newCostOld << endl;
+
+					/*
 					if(newCostOld==newCost){
 						printf("BINGO!\n");
 					}else{
@@ -1062,13 +1289,13 @@ double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,
 											std::cin.get();
 
 					} ;
-
+					 */
 
 					//cout << "In LS after iter calc" << endl;
 					//printDPs(ps, noDP);
 
-					cout << "newCost:" << newCost << endl;
-					if(beVerbose)cout << "currentCost:" << currentCost << endl;
+					//if(beVerbose)
+					cout << "currentCost:" << currentCost << endl;
 
 					if(newCost<currentCost){
 						if(beVerbose)cout <<"found better solution at j:" << j <<" l:" << l << endl;
@@ -1077,6 +1304,8 @@ double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,
 						cPoints[j] = cPointsNew[j];
 						improvement = currentCost-newCost;
 						currentCost=newCost;
+
+						cout << "new Min cost:" << currentCost << endl;
 
 						std::ostringstream stringStream;
 						stringStream << "Iteration: "  << iterations <<" with cost:"<<currentCost;
@@ -1114,7 +1343,6 @@ double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,
 			} // for l = current point to swap in for Center j
 			if(forBreak){
 				if(beVerbose)cout <<"break out of j"<< endl;
-				cout <<"break out of j"<< endl;
 				break;
 			}
 		} //for j= current Center to switch
@@ -1125,12 +1353,15 @@ double localSearchOpt(DataPoint ps[], int noDP, int k, int cap,int* regionsBest,
 
 	}
 
-	for(int z=0;z<k;z++){
-		cout << "in ls  center:"<< cPointsBest[z]<< endl;
-	}
 
-	if(beVerbose)cout <<  "While Loop exited at iter:" << iterations <<endl;
-	if(beVerbose)cout << "MinCost found:" <<currentCost<<endl;
+
+	if(beVerbose){
+		for(int z=0;z<k;z++){
+				cout << "in ls  center:"<< cPointsBest[z]<< endl;
+			}
+		cout <<  "While Loop exited at iter:" << iterations <<endl;
+
+	}if(beVerbose)cout << "MinCost found:" <<currentCost<<endl;
 	return currentCost;
 }
 
@@ -1315,13 +1546,13 @@ void generateNodesInGraph(const SmartDigraph& g ,DataPoint ps[],Node* nodesGraph
 }
 
 
-double calcRegionsCSRGTest(SmartDigraph& g,
+double calcRegionsCSRGTest(const SmartDigraph& g,
 		IntArcMap& capacity,
 		DoubleArcMap& cost,
 		IntNodeMap& supply,
 		IntArcMap& name,
-		Node* nodesGraph,
-		Node* centerNodes,
+		const Node* nodesGraph,
+		const Node* centerNodes,
 		int indexT,
 		int kToBeOutSwitched,
 		int iToBeInSwitched,
@@ -1329,17 +1560,18 @@ double calcRegionsCSRGTest(SmartDigraph& g,
 
 	//g.addNode();
 
-	bool beVerboseAboutFlow= true;
-	bool beVerbose = true;
+	bool beVerboseAboutFlow= false;
+	bool beVerbose = false;
 
-	printf("Input graph created with %d nodes and %d arcs\n\n",
+	if(beVerbose)printf("Input graph created with %d nodes and %d arcs\n\n",
 				countNodes(g), countArcs(g));
 	Arc newArc;
 	Node pnode;
 
+	if(beVerbose){
 	for(int z=0;z<k;z++)
 		printf("cPointsInds[%d] = %d",z,cPointsInds[z]);
-
+	}
 	for(int i=0;i<noDP;i++){
 			//// add arc s->p , cost 0, flowcap 1
 			pnode = nodesGraph[ps[i].graphNodeIndex];
@@ -1350,12 +1582,12 @@ double calcRegionsCSRGTest(SmartDigraph& g,
 					target = target - noDP-2;
 					int cInd = cPointsInds[target];
 					cost[e] = ps[g.id(g.source(e))].distanceTo(ps[cInd]);
-					printf("OutArc %d: %d->Center %d with id %d:  cap %d cost: %lf\n", g.id(e),
+					if(beVerbose)printf("OutArc %d: %d->Center %d with id %d:  cap %d cost: %lf\n", g.id(e),
 											g.id(g.source(e)),
 											target,cInd,
 											capacity[e] ,cost[e]);
 				}else{
-					printf("OutArc %d: %d->%d:  cap %d cost: %lf\n", g.id(e),
+					if(beVerbose)printf("OutArc %d: %d->%d:  cap %d cost: %lf\n", g.id(e),
 									g.id(g.source(e)),
 									g.id(g.target(e)),
 									capacity[e] ,cost[e]);
@@ -1372,7 +1604,7 @@ double calcRegionsCSRGTest(SmartDigraph& g,
 	} //end for all point nodes
 
 
-	for (ArcIt a(g); a != INVALID; ++a) {
+	if(beVerbose)for (ArcIt a(g); a != INVALID; ++a) {
 		//cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
 		printf("End Arc %d: %d->%d:  cap %d cost: %lf\n", g.id(a),
 						g.id(g.source(a)),
@@ -1396,17 +1628,23 @@ double calcRegionsCSRGTest(SmartDigraph& g,
 	*/
 	}
 
+	//cout << "capacityScale start until here:"<< getCurrentCPUDiff() << endl;
+
 	//NetworkSimplex<SmartDigraph> ns(g);
 	CapacityScaling<SmartDigraph,int,double> ns(g);
+
+	//cout << "capacityScale end here:"<< getCurrentCPUDiff() << endl;
 
 	//cout << "In Calc before run" << endl;
 	//printDPs(ps, noDP);
 
-
+	//cout << "capacityScale supply and run here:"<< getCurrentCPUDiff() << endl;
 	ns.upperMap(capacity).costMap(cost).supplyMap(supply);
+	//cout << "capacityScale run starts here:"<< getCurrentCPUDiff() << endl;
 	// Run NetworkSimplex
 	ns.run();
 	// Print total flow cost
+	//cout << "capacityScale run end here:"<< getCurrentCPUDiff() << endl;
 
 	for (ArcIt a(g); a != INVALID; ++a) {
 		//if it is not s or t
@@ -1414,7 +1652,270 @@ double calcRegionsCSRGTest(SmartDigraph& g,
 			if(g.id(g.source(a))<noDP){
 				//WRONG!!indexT+1+i == centerIndex => centerID = node_CenterIndex-indexT-1
 				int regionID = g.id(g.target(a))-indexT-2;
+				regions[g.id(g.source(a))] = g.id(g.target(a))-indexT-1;;
+
+				if(beVerboseAboutFlow){
+					cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
+					//if(beVerbose)
+					printf("CS Region Map %d->%d\n",g.id(g.source(a))+1 ,regionID);
+					cout << "g.id(g.source(a)):" << g.id(g.source(a)) << endl;
+				}
+			}
+		}
+	}//end for arcIt a
+
+	for(int i=0;i<noDP;i++){
+		//printf("Region Map %d->%d\n");
+		if(beVerbose)printf("index %d value %d\n",i+1,regions[i]);
+	}
+
+	//cout << "In Calc return " << endl;
+	//printDPs(ps, noDP);
+	if(beVerbose)printf("*****calcEnd********\n");
+	return ns.totalCost<double>();
+
+}
+
+double calcRegionsCostOp(const SmartDigraph& g,
+		IntArcMap& capacity,
+		DoubleArcMap& cost,
+		IntNodeMap& supply,
+		IntArcMap& name,
+		const Node* nodesGraph,
+		const Node* centerNodes,
+		int indexT,
+		int kToBeOutSwitched,
+		int iToBeInSwitched,
+		DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int* regions){
+
+	//g.addNode();
+
+	bool beVerboseAboutFlow= false;
+	bool beVerbose = false;
+
+	if(beVerbose)printf("Input graph created with %d nodes and %d arcs\n\n",
+				countNodes(g), countArcs(g));
+	Arc newArc;
+	Node pnode;
+
+	if(beVerbose){
+	for(int z=0;z<k;z++)
+		printf("cPointsInds[%d] = %d",z,cPointsInds[z]);
+	}
+	for(int i=0;i<noDP;i++){
+			//// add arc s->p , cost 0, flowcap 1
+			pnode = nodesGraph[ps[i].graphNodeIndex];
+			//forall c add p->c cost dist, flowcap 1
+			for (OutArcIt e(g, pnode); e!=INVALID; ++e){
+				int target = g.id(g.target(e));
+				if(target>noDP+1){
+					target = target - noDP-2;
+					int cInd = cPointsInds[target];
+					cost[e] = ps[g.id(g.source(e))].distanceTo(ps[cInd]);
+					if(beVerbose)printf("OutArc %d: %d->Center %d with id %d:  cap %d cost: %lf\n", g.id(e),
+											g.id(g.source(e)),
+											target,cInd,
+											capacity[e] ,cost[e]);
+				}else{
+					if(beVerbose)printf("OutArc %d: %d->%d:  cap %d cost: %lf\n", g.id(e),
+									g.id(g.source(e)),
+									g.id(g.target(e)),
+									capacity[e] ,cost[e]);
+				}
+			}
+			/*
+			for(int j=0;j<k;j++){
+				Node cnode = centerNodes[j];
+				newArc =
+				capacity[newArc] = 1;
+				double costLocal= ps[i].distanceTo(ps[cPointsInds[j]]);
+				cost[newArc] = costLocal;
+			}*/
+	} //end for all point nodes
+
+
+	if(beVerbose)for (ArcIt a(g); a != INVALID; ++a) {
+		//cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
+		printf("End Arc %d: %d->%d:  cap %d cost: %lf\n", g.id(a),
+						g.id(g.source(a)),
+						g.id(g.target(a)),
+						capacity[a] ,cost[a]);
+		//cost[a]= 100;
+		//capacity[a] = 5;
+		//if it is not s or t
+		//if(ns.flow(a)>0){
+		/*
+		if(g.id(g.source(a))<noDP){
+				//WRONG!!indexT+1+i == centerIndex => centerID = node_CenterIndex-indexT-1
+				int regionID = g.id(g.target(a))-indexT-1;
 				regions[g.id(g.source(a))] = regionID;
+					cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
+					//if(beVerbose)
+					printf("CS Region Map %d->%d\n",g.id(g.source(a))+1 ,regionID);
+					cout << "g.id(g.source(a)):" << g.id(g.source(a)) << endl;
+			}
+		//}// end if flow
+	*/
+	}
+
+	//cout << "capacityScale start until here:"<< getCurrentCPUDiff() << endl;
+
+	//NetworkSimplex<SmartDigraph> ns(g);
+	CostScaling<SmartDigraph,int,double> ns(g);
+
+	//cout << "capacityScale end here:"<< getCurrentCPUDiff() << endl;
+
+	//cout << "In Calc before run" << endl;
+	//printDPs(ps, noDP);
+
+	//cout << "capacityScale supply and run here:"<< getCurrentCPUDiff() << endl;
+	ns.upperMap(capacity).costMap(cost).supplyMap(supply);
+	//cout << "capacityScale run starts here:"<< getCurrentCPUDiff() << endl;
+	// Run NetworkSimplex
+	ns.run();
+	// Print total flow cost
+	//cout << "capacityScale run end here:"<< getCurrentCPUDiff() << endl;
+
+	for (ArcIt a(g); a != INVALID; ++a) {
+		//if it is not s or t
+		if(ns.flow(a)>0){
+			if(g.id(g.source(a))<noDP){
+				//WRONG!!indexT+1+i == centerIndex => centerID = node_CenterIndex-indexT-1
+				int regionID = g.id(g.target(a))-indexT-2;
+				regions[g.id(g.source(a))] = g.id(g.target(a))-indexT-1;;
+
+				if(beVerboseAboutFlow){
+					cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
+					//if(beVerbose)
+					printf("CS Region Map %d->%d\n",g.id(g.source(a))+1 ,regionID);
+					cout << "g.id(g.source(a)):" << g.id(g.source(a)) << endl;
+				}
+			}
+		}
+	}//end for arcIt a
+
+	for(int i=0;i<noDP;i++){
+		//printf("Region Map %d->%d\n");
+		if(beVerbose)printf("index %d value %d\n",i+1,regions[i]);
+	}
+
+	//cout << "In Calc return " << endl;
+	//printDPs(ps, noDP);
+	if(beVerbose)printf("*****calcEnd********\n");
+	return ns.totalCost<double>();
+
+}
+
+double calcRegionsNS2(const SmartDigraph& g,
+		IntArcMap& capacity,
+		DoubleArcMap& cost,
+		IntNodeMap& supply,
+		IntArcMap& name,
+		const Node* nodesGraph,
+		const Node* centerNodes,
+		int indexT,
+		int kToBeOutSwitched,
+		int iToBeInSwitched,
+		DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int* regions){
+
+	//g.addNode();
+
+	bool beVerboseAboutFlow= false;
+	bool beVerbose = false;
+
+	if(beVerbose)printf("Input graph created with %d nodes and %d arcs\n\n",
+				countNodes(g), countArcs(g));
+	Arc newArc;
+	Node pnode;
+
+	if(beVerbose){
+	for(int z=0;z<k;z++)
+		printf("cPointsInds[%d] = %d",z,cPointsInds[z]);
+	}
+	for(int i=0;i<noDP;i++){
+			//// add arc s->p , cost 0, flowcap 1
+			pnode = nodesGraph[ps[i].graphNodeIndex];
+			//forall c add p->c cost dist, flowcap 1
+			for (OutArcIt e(g, pnode); e!=INVALID; ++e){
+				int target = g.id(g.target(e));
+				if(target>noDP+1){
+					target = target - noDP-2;
+					int cInd = cPointsInds[target];
+					cost[e] = ps[g.id(g.source(e))].distanceTo(ps[cInd]);
+					if(beVerbose)printf("OutArc %d: %d->Center %d with id %d:  cap %d cost: %lf\n", g.id(e),
+											g.id(g.source(e)),
+											target,cInd,
+											capacity[e] ,cost[e]);
+				}else{
+					if(beVerbose)printf("OutArc %d: %d->%d:  cap %d cost: %lf\n", g.id(e),
+									g.id(g.source(e)),
+									g.id(g.target(e)),
+									capacity[e] ,cost[e]);
+				}
+			}
+			/*
+			for(int j=0;j<k;j++){
+				Node cnode = centerNodes[j];
+				newArc =
+				capacity[newArc] = 1;
+				double costLocal= ps[i].distanceTo(ps[cPointsInds[j]]);
+				cost[newArc] = costLocal;
+			}*/
+	} //end for all point nodes
+
+
+	if(beVerbose)for (ArcIt a(g); a != INVALID; ++a) {
+		//cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
+		printf("End Arc %d: %d->%d:  cap %d cost: %lf\n", g.id(a),
+						g.id(g.source(a)),
+						g.id(g.target(a)),
+						capacity[a] ,cost[a]);
+		//cost[a]= 100;
+		//capacity[a] = 5;
+		//if it is not s or t
+		//if(ns.flow(a)>0){
+		/*
+		if(g.id(g.source(a))<noDP){
+				//WRONG!!indexT+1+i == centerIndex => centerID = node_CenterIndex-indexT-1
+				int regionID = g.id(g.target(a))-indexT-1;
+				regions[g.id(g.source(a))] = regionID;
+					cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
+					//if(beVerbose)
+					printf("CS Region Map %d->%d\n",g.id(g.source(a))+1 ,regionID);
+					cout << "g.id(g.source(a)):" << g.id(g.source(a)) << endl;
+			}
+		//}// end if flow
+	*/
+	}
+	bool verboseTime = false;
+	if(verboseTime)cout << "capacityScale start until here:"<< getCurrentCPUDiff() << endl;
+
+	NetworkSimplex<SmartDigraph> ns(g);
+		//CapacityScaling<SmartDigraph> ns(g);
+
+		//cout << "In Calc before run" << endl;
+		//printDPs(ps, noDP);
+
+	ns.upperMap(capacity).costMap(cost).supplyMap(supply);
+		// Run NetworkSimplex
+	ns.run();
+
+
+	if(verboseTime)cout << "NetworkSimplex supply and run here:"<< getCurrentCPUDiff() << endl;
+	ns.upperMap(capacity).costMap(cost).supplyMap(supply);
+	if(verboseTime)cout << "NetworkSimplex run starts here:"<< getCurrentCPUDiff() << endl;
+	// Run NetworkSimplex
+	ns.run();
+	// Print total flow cost
+	if(verboseTime)cout << "capacityScale run end here:"<< getCurrentCPUDiff() << endl;
+
+	for (ArcIt a(g); a != INVALID; ++a) {
+		//if it is not s or t
+		if(ns.flow(a)>0){
+			if(g.id(g.source(a))<noDP){
+				//WRONG!!indexT+1+i == centerIndex => centerID = node_CenterIndex-indexT-1
+				int regionID = g.id(g.target(a))-indexT-2;
+				regions[g.id(g.source(a))] = g.id(g.target(a))-indexT-1;;
 
 				if(beVerboseAboutFlow){
 					cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
@@ -1439,84 +1940,22 @@ double calcRegionsCSRGTest(SmartDigraph& g,
 }
 
 
+
 double calcRegionsCSRG(const SmartDigraph& g,
 		IntArcMap& capacity,
 		DoubleArcMap& cost,
 		IntNodeMap& supply,
 		IntArcMap& name,
-		Node* nodesGraph,
-		Node* centerNodes,
-		int indexT,
-		DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int* regions){
-
-	bool beVerbose = false;
-	bool lilVerbose = false;
-	bool beVerboseAboutFlow = false;
-	bool graphVerbose = false;
-	if(beVerbose||lilVerbose)printf("*****calcBegin********\n");
-	//create graph
-	//DIGRAPH_TYPEDEFS(SmartDigraph);
-
-	// Initialize NetworkSimplex algorithm object
-	//NetworkSimplex<SmartDigraph> ns(g);
-	CapacityScaling<SmartDigraph,int,double> ns(g);
-
-	//cout << "In Calc before run" << endl;
-	//printDPs(ps, noDP);
+				const Node* nodesGraph,
+				const Node* centerNodes,
+				int indexT,
+				int kToBeOutSwitched,
+				int iToBeInSwitched,
+				DataPoint ps[],int cPointsInds[], int noDP, int k, int cap, int* regions){
 
 
-	ns.upperMap(capacity).costMap(cost).supplyMap(supply);
-	// Run NetworkSimplex
-	ns.run();
-	// Print total flow cost
-	if(beVerbose||lilVerbose)printf("Total flow cost: %f\n\n", ns.totalCost<double>());
+	return calcRegionsCS( ps, cPointsInds,  noDP,  k, cap, regions);
 
-	if(beVerbose)std::cout << "Total cost: " << ns.totalCost<double>() << std::endl;
-
-	// Print flow values on the arcs with ArcIterator
-	if(beVerbose)printf("Flow values on arcs:\n");
-	for (ArcIt a(g); a != INVALID; ++a) {
-		//if it is not s or t
-		if(ns.flow(a)>0){
-			if(g.id(g.source(a))<noDP){
-				//WRONG!!indexT+1+i == centerIndex => centerID = node_CenterIndex-indexT-1
-
-				int regionID = g.id(g.target(a))-indexT-1;
-				regions[g.id(g.source(a))] = regionID;
-
-				if(beVerboseAboutFlow){
-					cout << "g.id(g.target(a)):" << g.id(g.target(a)) << endl;
-					//if(beVerbose)
-					printf("CS Region Map %d->%d\n",g.id(g.source(a))+1 ,regionID);
-					cout << "g.id(g.source(a)):" << g.id(g.source(a)) << endl;
-				}
-
-				/*
-				if(g.id(g.target(a))<noDP){
-					if(beVerbose)printf("Region Map %d->%d\n",g.id(g.source(a))+1 ,g.id(g.target(a))+1);
-					regions[g.id(g.source(a))] = g.id(g.target(a));
-				}else{
-					if(beVerbose)printf("Region Map %d-is Center\n",g.id(g.source(a))+1);
-					regions[g.id(g.source(a))] = g.id(g.source(a));
-				}*/
-			}
-		}
-
-		if(beVerbose||graphVerbose)printf("Arc %d: %s->%s:  %d/%d cost: %lf\n", g.id(a),
-				vertNoToString(g.id(g.source(a)),noDP).c_str(),
-				vertNoToString(g.id(g.target(a)),noDP).c_str(),
-				ns.flow(a), capacity[a] ,cost[a]);
-
-	}
-	for(int i=0;i<noDP;i++){
-		//printf("Region Map %d->%d\n");
-		if(beVerbose)printf("index %d value %d\n",i+1,regions[i]);
-	}
-
-	//cout << "In Calc return " << endl;
-	//printDPs(ps, noDP);
-	if(beVerbose||lilVerbose)printf("*****calcEnd********\n");
-	return ns.totalCost<double>();
 }
 
 
