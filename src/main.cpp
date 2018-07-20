@@ -573,8 +573,6 @@ int example2(){
 	int bestRegs[noDP];
 	//localSearchOpt(ps, noDP,  k,  cap, bestRegs, bestC,false,true);
 
-
-
 	bruteForceSearch(ps, noDP,  k,  cap,bestRegs, bestC);
 
 	updateDPS(ps,noDP,bestC,k,bestRegs);
